@@ -24,4 +24,9 @@ async function request(path, options = {}) {
 export const api = {
   health: () => request("/api/health"),
   me: () => request("/api/auth/me"),
+  legalNotices: () => request("/api/legal/notices"),
+  acceptLegal: () => request("/api/legal/accept", {
+    method: "POST",
+    body: JSON.stringify({ terms_accepted: true, privacy_accepted: true }),
+  }),
 };

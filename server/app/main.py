@@ -8,6 +8,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.db import init_db
+from app.legal_routes import router as legal_router
 
 
 @asynccontextmanager
@@ -31,6 +32,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
+app.include_router(legal_router)
 
 
 @app.get("/api/health")
