@@ -28,6 +28,7 @@ export default function App() {
   return <main className="public-page"><section className="content-card public-card">
     <div className="brand"><span className="brand-mark">S</span><span>Scribe</span></div>
     <h1>{login ? "Connexion" : "Créer un compte"}</h1>
+    <a className="google-button" href="/api/auth/sso/google">Continuer avec Google</a>
     <form className="auth-form" onSubmit={submit}>
       {!login && <input placeholder="Nom complet" value={name} onChange={event => setName(event.target.value)} required />}
       <input type="email" placeholder="E-mail" value={email} onChange={event => setEmail(event.target.value)} required />
