@@ -7,9 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
+from app.consent_routes import router as consent_router
 from app.db import init_db
 from app.legal_routes import router as legal_router
-from app.consent_routes import router as consent_router
+from app.retention import purge_expired_data
 from app.routes import router
 
 
@@ -17,6 +18,7 @@ from app.routes import router
 async def lifespan(_: FastAPI):
     settings.audio_directory.mkdir(parents=True, exist_ok=True)
     init_db()
+    purge_expired_data()
     yield
 
 
@@ -35,10 +37,17 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 app.include_router(router)
-app.include_router(legal_router)
 app.include_router(consent_router)
+app.include_router(legal_router)
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "mistral_configured": bool(settings.mistral_api_key),
+        "google_sso_configured": settings.google_sso_configured,
+        "email_configured": settings.smtp_configured,
+        "legal_configured": settings.legal_configured,
+        "summary_model": settings.summary_model,
+    }
