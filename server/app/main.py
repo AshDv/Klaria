@@ -9,6 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.db import init_db
 from app.legal_routes import router as legal_router
+from app.consent_routes import router as consent_router
 from app.routes import router
 
 
@@ -35,6 +36,7 @@ app.add_middleware(
 )
 app.include_router(router)
 app.include_router(legal_router)
+app.include_router(consent_router)
 
 
 @app.get("/api/health")
