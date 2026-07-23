@@ -29,4 +29,17 @@ export const api = {
     method: "POST",
     body: JSON.stringify({ terms_accepted: true, privacy_accepted: true }),
   }),
+  register: async (fullName, email, password, termsAccepted, privacyAccepted) => {
+    const data = await request("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        full_name: fullName,
+        email,
+        password,
+        terms_accepted: termsAccepted,
+        privacy_accepted: privacyAccepted,
+      }),
+    });
+    setAccessToken(data.access_token);
+  },
 };
