@@ -59,4 +59,21 @@ export const api = {
   }),
   listConsentSessions: () => request("/api/consent-sessions"),
   getConsentSession: (id) => request(`/api/consent-sessions/${id}`),
+  startConsentSession: (id) => request(`/api/consent-sessions/${id}/start`, {
+    method: "POST",
+    body: JSON.stringify({ notice_confirmed: true }),
+  }),
+  stopConsentSession: (id) => request(`/api/consent-sessions/${id}/stop`, {
+    method: "POST",
+  }),
+  getPublicConsent: (token) => request(`/api/public/consents/${token}`),
+  acceptConsent: (token) => request(`/api/public/consents/${token}/accept`, {
+    method: "POST",
+  }),
+  withdrawConsent: (token) => request(`/api/public/consents/${token}/withdraw`, {
+    method: "POST",
+  }),
+  eraseConsentData: (token) => request(`/api/public/consents/${token}/data`, {
+    method: "DELETE",
+  }),
 };
