@@ -76,4 +76,15 @@ export const api = {
   eraseConsentData: (token) => request(`/api/public/consents/${token}/data`, {
     method: "DELETE",
   }),
+  listRecordings: () => request("/api/recordings"),
+  getRecording: (id) => request(`/api/recordings/${id}`),
+  createRecording: (title, audio, consent, consentSessionId) => {
+    const form = new FormData();
+    form.set("title", title);
+    form.set("consent", String(consent));
+    form.set("consent_session_id", consentSessionId);
+    form.set("audio", audio, `scribe-${Date.now()}.webm`);
+    return request("/api/recordings", { method: "POST", body: form });
+  },
+  deleteRecording: (id) => request(`/api/recordings/${id}`, { method: "DELETE" }),
 };
