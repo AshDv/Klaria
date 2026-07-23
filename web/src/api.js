@@ -87,4 +87,9 @@ export const api = {
     return request("/api/recordings", { method: "POST", body: form });
   },
   deleteRecording: (id) => request(`/api/recordings/${id}`, { method: "DELETE" }),
+  exportData: () => request("/api/privacy/export"),
+  deleteAccount: () => request("/api/privacy/account", {
+    method: "DELETE",
+    body: JSON.stringify({ confirmation: "DELETE" }),
+  }),
 };
