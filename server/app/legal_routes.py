@@ -1,21 +1,14 @@
-"""API Scribe."""
-
 """Information, accords et droits RGPD des utilisateurs."""
 
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-
 from pydantic import BaseModel
-
 from sqlmodel import Session, select
 
 from app.auth import current_user
-
 from app.config import settings
-
 from app.db import get_session
-
 from app.models import (
     ConsentSession,
     ExternalIdentity,
@@ -29,12 +22,15 @@ from app.models import (
 
 router = APIRouter(prefix="/api")
 
+
 class AgreementInput(BaseModel):
     terms_accepted: bool
     privacy_accepted: bool
 
+
 class DeleteAccountInput(BaseModel):
     confirmation: str
+
 
 def has_current_agreements(user_id: str, db: Session) -> bool:
     agreement = db.exec(
@@ -48,6 +44,7 @@ def has_current_agreements(user_id: str, db: Session) -> bool:
     ).first()
     return bool(agreement)
 
+
 def save_agreements(user_id: str, payload: AgreementInput, db: Session) -> None:
     if not payload.terms_accepted or not payload.privacy_accepted:
         raise HTTPException(400, "Les CGU et l’information RGPD doivent être acceptées")
@@ -60,6 +57,7 @@ def save_agreements(user_id: str, payload: AgreementInput, db: Session) -> None:
             )
         )
         db.commit()
+
 
 @router.get("/legal/notices")
 def legal_notices():
@@ -97,6 +95,7 @@ def legal_notices():
         "legal_configuration_complete": settings.legal_configured,
     }
 
+
 @router.post("/legal/accept", status_code=204)
 def accept_legal(
     payload: AgreementInput,
@@ -104,3 +103,74 @@ def accept_legal(
     db: Session = Depends(get_session),
 ):
     save_agreements(user.id, payload, db)
+
+
+@router.get("/privacy/export")
+def export_data(
+    user: User = Depends(current_user),
+    db: Session = Depends(get_session),
+):
+    recordings = db.exec(select(Recording).where(Recording.owner_id == user.id))
+    meetings = db.exec(select(ConsentSession).where(ConsentSession.owner_id == user.id))
+    agreements = db.exec(select(UserAgreement).where(UserAgreement.user_id == user.id))
+    return {
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "created_at": user.created_at,
+        },
+        "agreements": [item.model_dump(exclude={"id", "user_id"}) for item in agreements],
+        "meetings": [item.model_dump(exclude={"owner_id"}) for item in meetings],
+        "recordings": [item.model_dump(exclude={"owner_id", "audio_path"}) for item in recordings],
+    }
+
+
+def delete_audio(recording: Recording) -> None:
+    if not recording.audio_path:
+        return
+    path = Path(recording.audio_path).resolve()
+    if path.is_relative_to(settings.audio_directory) and path.exists():
+        path.unlink()
+
+
+@router.delete("/privacy/account", status_code=204)
+def delete_account(
+    payload: DeleteAccountInput,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_session),
+):
+    if payload.confirmation != "DELETE":
+        raise HTTPException(400, "Saisissez DELETE pour confirmer")
+
+    recordings = list(db.exec(select(Recording).where(Recording.owner_id == user.id)))
+    recording_ids = {item.id for item in recordings}
+    meetings = list(db.exec(select(ConsentSession).where(ConsentSession.owner_id == user.id)))
+    meeting_ids = {item.id for item in meetings}
+
+    for link in list(db.exec(select(SessionRecording))):
+        if link.recording_id in recording_ids or link.session_id in meeting_ids:
+            db.delete(link)
+    for consent in list(db.exec(select(ParticipantConsent))):
+        if consent.session_id in meeting_ids:
+            db.delete(consent)
+        elif consent.email == user.email:
+            consent.name = "Données effacées"
+            consent.email = ""
+            db.add(consent)
+    for recording in recordings:
+        report = db.exec(
+            select(StructuredReport).where(StructuredReport.recording_id == recording.id)
+        ).first()
+        if report:
+            db.delete(report)
+        delete_audio(recording)
+        db.delete(recording)
+    for meeting in meetings:
+        db.delete(meeting)
+    for agreement in db.exec(select(UserAgreement).where(UserAgreement.user_id == user.id)):
+        db.delete(agreement)
+    for identity in db.exec(select(ExternalIdentity).where(ExternalIdentity.user_id == user.id)):
+        db.delete(identity)
+    db.delete(user)
+    db.commit()
