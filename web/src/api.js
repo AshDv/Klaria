@@ -53,4 +53,10 @@ export const api = {
     const data = await response.json();
     setAccessToken(data.access_token);
   },
+  createConsentSession: (data) => request("/api/consent-sessions", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }),
+  listConsentSessions: () => request("/api/consent-sessions"),
+  getConsentSession: (id) => request(`/api/consent-sessions/${id}`),
 };
