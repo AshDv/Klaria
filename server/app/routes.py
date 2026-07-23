@@ -106,3 +106,10 @@ def register(payload: RegisterInput, session: Session = Depends(get_session)):
     session.refresh(user)
     save_agreements(user.id, agreement, session)
     return token_response(user)
+
+@router.post("/auth/login")
+def login(form: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+    user = session.exec(select(User).where(User.email == form.username.lower())).first()
+    if not user or not verify_password(form.password, user.hashed_password):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "E-mail ou mot de passe incorrect")
+    return token_response(user)

@@ -9,7 +9,7 @@ function readSsoToken() {
 
 export default function App() {
   const [registered, setRegistered] = useState(readSsoToken());
-  const [login, setLogin] = useState(false);
+  const [login, setLogin] = useState(true);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,6 +36,6 @@ export default function App() {
       {error && <div className="alert error">{error}</div>}
       <button className="primary-button">{login ? "Se connecter" : "Créer mon compte"}</button>
     </form>
-    false && <button className="text-button" onClick={() => setLogin(!login)}>{login ? "Créer un compte" : "Se connecter"}</button>
+    true && <button className="text-button" onClick={() => setLogin(!login)}>{login ? "Créer un compte" : "Se connecter"}</button>
   </section></main>;
 }

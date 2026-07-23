@@ -42,4 +42,15 @@ export const api = {
     });
     setAccessToken(data.access_token);
   },
+  login: async (email, password) => {
+    const body = new URLSearchParams({ username: email, password });
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    if (!response.ok) throw new Error("E-mail ou mot de passe incorrect");
+    const data = await response.json();
+    setAccessToken(data.access_token);
+  },
 };
