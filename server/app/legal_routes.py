@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -14,11 +14,13 @@ from app.models import (
     ExternalIdentity,
     ParticipantConsent,
     Recording,
+    RemoteMeeting,
     SessionRecording,
     StructuredReport,
     User,
     UserAgreement,
 )
+from app.remote_processing import erase_provider_meeting
 
 router = APIRouter(prefix="/api")
 
@@ -67,10 +69,16 @@ def legal_notices():
         "controller": settings.data_controller_name or "À renseigner avant production",
         "controller_address": settings.data_controller_address or "À renseigner avant production",
         "privacy_contact": settings.privacy_contact_email,
+        "retention_days": settings.result_retention_days,
         "processing": [
             "Compte : e-mail, nom, mot de passe hashé et accords.",
             "Réunion : noms et e-mails des invités jusqu’à suppression.",
             "Audio : transmis à Mistral AI pour transcription, puis supprimé.",
+            "Réunion en ligne : audio transcrit en direct par Vexa sans enregistrement activé.",
+            "Chat de réunion : consulté sans stockage pour détecter STOP SCRIBE et "
+            "publier le récapitulatif.",
+            "Participants : noms et e-mails renseignés par l’organisateur pour recueillir "
+            "les accords avant la capture.",
             "Résultats : transcription, intervenants et compte rendu pendant "
             f"{settings.result_retention_days} jours au maximum.",
         ],
@@ -84,8 +92,8 @@ def legal_notices():
             "Consentement : enregistrement et analyse de la réunion.",
             "Obligation légale : réponse aux demandes d’exercice des droits.",
         ],
-        "recipients": ["Organisateur de la réunion", "Mistral AI"],
-        "processors": ["Mistral AI"],
+        "recipients": ["Organisateur de la réunion", "Mistral AI", "Vexa"],
+        "processors": ["Mistral AI", "Vexa"],
         "rights": [
             "Retirer son consentement à tout moment.",
             "Accéder, exporter ou effacer ses données.",
@@ -111,6 +119,7 @@ def export_data(
     db: Session = Depends(get_session),
 ):
     recordings = db.exec(select(Recording).where(Recording.owner_id == user.id))
+    remote_meetings = db.exec(select(RemoteMeeting).where(RemoteMeeting.owner_id == user.id))
     meetings = db.exec(select(ConsentSession).where(ConsentSession.owner_id == user.id))
     agreements = db.exec(select(UserAgreement).where(UserAgreement.user_id == user.id))
     return {
@@ -123,6 +132,9 @@ def export_data(
         "agreements": [item.model_dump(exclude={"id", "user_id"}) for item in agreements],
         "meetings": [item.model_dump(exclude={"owner_id"}) for item in meetings],
         "recordings": [item.model_dump(exclude={"owner_id", "audio_path"}) for item in recordings],
+        "remote_meetings": [
+            item.model_dump(exclude={"owner_id", "meeting_url"}) for item in remote_meetings
+        ],
     }
 
 
@@ -137,6 +149,7 @@ def delete_audio(recording: Recording) -> None:
 @router.delete("/privacy/account", status_code=204)
 def delete_account(
     payload: DeleteAccountInput,
+    background_tasks: BackgroundTasks,
     user: User = Depends(current_user),
     db: Session = Depends(get_session),
 ):
@@ -146,11 +159,21 @@ def delete_account(
     recordings = list(db.exec(select(Recording).where(Recording.owner_id == user.id)))
     recording_ids = {item.id for item in recordings}
     meetings = list(db.exec(select(ConsentSession).where(ConsentSession.owner_id == user.id)))
+    remote_meetings = list(db.exec(select(RemoteMeeting).where(RemoteMeeting.owner_id == user.id)))
     meeting_ids = {item.id for item in meetings}
 
+    # Supprimer et vider les enfants avant leurs parents pour respecter les FK PostgreSQL.
     for link in list(db.exec(select(SessionRecording))):
         if link.recording_id in recording_ids or link.session_id in meeting_ids:
             db.delete(link)
+    for recording in recordings:
+        report = db.exec(
+            select(StructuredReport).where(StructuredReport.recording_id == recording.id)
+        ).first()
+        if report:
+            db.delete(report)
+    db.flush()
+
     for consent in list(db.exec(select(ParticipantConsent))):
         if consent.session_id in meeting_ids:
             db.delete(consent)
@@ -159,18 +182,20 @@ def delete_account(
             consent.email = ""
             db.add(consent)
     for recording in recordings:
-        report = db.exec(
-            select(StructuredReport).where(StructuredReport.recording_id == recording.id)
-        ).first()
-        if report:
-            db.delete(report)
         delete_audio(recording)
         db.delete(recording)
-    for meeting in meetings:
-        db.delete(meeting)
+    for remote in remote_meetings:
+        background_tasks.add_task(erase_provider_meeting, remote.platform, remote.native_id)
+        db.delete(remote)
     for agreement in db.exec(select(UserAgreement).where(UserAgreement.user_id == user.id)):
         db.delete(agreement)
     for identity in db.exec(select(ExternalIdentity).where(ExternalIdentity.user_id == user.id)):
         db.delete(identity)
+    db.flush()
+
+    for meeting in meetings:
+        db.delete(meeting)
+    db.flush()
+
     db.delete(user)
     db.commit()
