@@ -1,5 +1,6 @@
 """API du MVP : comptes, SSO, dictaphone et résultats."""
 
+import asyncio
 import json
 from pathlib import Path
 from urllib.parse import quote
@@ -7,7 +8,6 @@ from urllib.parse import quote
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from fastapi import (
     APIRouter,
-    BackgroundTasks,
     Depends,
     File,
     Form,
@@ -204,13 +204,13 @@ def recording_detail(recording: Recording, session: Session | None = None) -> di
             "open_questions": parse_json(report.open_questions_json),
             "risks": parse_json(report.risks_json),
             "coverage": parse_json(report.coverage_json),
+            "podcast_script": parse_json(report.podcast_json),
         }
     return result
 
 
 @router.post("/recordings", status_code=202)
 async def create_recording(
-    background_tasks: BackgroundTasks,
     title: str = Form(..., min_length=1, max_length=120),
     consent: bool = Form(...),
     consent_session_id: str = Form(...),
@@ -258,8 +258,10 @@ async def create_recording(
     session.add(SessionRecording(session_id=meeting.id, recording_id=recording.id))
     session.commit()
     session.refresh(recording)
-    background_tasks.add_task(process_recording, recording.id)
-    return recording_detail(recording, session)
+    # Garder la requête active empêche Scaleway d'interrompre le traitement.
+    await asyncio.to_thread(process_recording, recording.id)
+    session.expire_all()
+    return recording_detail(owned_recording(recording.id, user, session), session)
 
 
 @router.get("/recordings")
@@ -299,6 +301,7 @@ def delete_recording(
     ).first()
     if report:
         session.delete(report)
+    session.flush()
     path = Path(recording.audio_path).resolve()
     if path.is_relative_to(settings.audio_directory) and path.exists():
         path.unlink()
