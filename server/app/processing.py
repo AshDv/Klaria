@@ -99,6 +99,10 @@ def process_recording(recording_id: str) -> None:
                         [item.model_dump() for item in result.coverage],
                         ensure_ascii=False,
                     ),
+                    podcast_json=json.dumps(
+                        [item.model_dump() for item in result.podcast_script],
+                        ensure_ascii=False,
+                    ),
                 )
             )
             recording.status = RecordingStatus.COMPLETED
