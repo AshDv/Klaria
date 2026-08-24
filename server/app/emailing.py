@@ -10,7 +10,13 @@ class EmailError(RuntimeError):
     pass
 
 
-def send_consent_email(name: str, email: str, title: str, token: str) -> None:
+def send_consent_email(
+    name: str,
+    email: str,
+    title: str,
+    token: str,
+    media_retention_days: int = 0,
+) -> None:
     if not settings.smtp_configured:
         raise EmailError("Le serveur d’e-mail SMTP n’est pas configuré")
 
@@ -19,17 +25,29 @@ def send_consent_email(name: str, email: str, title: str, token: str) -> None:
     message["Subject"] = f"Votre accord est requis avant « {title} »"
     message["From"] = settings.smtp_from_email
     message["To"] = email
+    media_notice = (
+        f"Un replay audio sera conservé au maximum {media_retention_days} jours, "
+        "puis supprimé automatiquement."
+        if media_retention_days
+        else "L’audio du bot en ligne n’est pas conservé."
+    )
     message.set_content(
         f"""Bonjour {name},
 
 Vous êtes invité à une réunion intitulée « {title} ».
-Scribe enregistrera la voix des participants, transmettra l’audio à Mistral AI
-pour transcription et utilisera Mistral Medium 3.5 pour produire un compte rendu.
+Scribe captera la voix des participants. Selon le mode choisi, la transcription
+sera réalisée par Mistral AI ou par le bot Vexa. Mistral Medium 3.5 utilisera
+ensuite la transcription pour produire le compte rendu.
+
+Dans une réunion en ligne, Scribe peut lire le chat uniquement pour détecter la
+commande « STOP SCRIBE » et peut y publier le récapitulatif. Scribe ne conserve pas
+les messages du chat.
 
 Vous pouvez accepter ou refuser librement, puis retirer votre accord à tout moment :
 {link}
 
-Sans l’accord de chaque participant, l’enregistrement ne pourra pas commencer.
+{media_notice} Sans l’accord de chaque participant,
+la capture ne pourra pas commencer.
 Contact données personnelles : {settings.privacy_contact_email}
 """
     )
