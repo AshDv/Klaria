@@ -34,16 +34,20 @@ def create_access_token(user_id: str) -> str:
     return jwt.encode({"sub": user_id, "exp": expires_at}, settings.secret_key, algorithm=ALGORITHM)
 
 
+def user_id_from_token(token: str) -> str | None:
+    try:
+        return jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM]).get("sub")
+    except JWTError:
+        return None
+
+
 def current_user(token: str = Depends(oauth2), session: Session = Depends(get_session)) -> User:
     unauthorized = HTTPException(
         status.HTTP_401_UNAUTHORIZED,
         "Connexion requise",
         {"WWW-Authenticate": "Bearer"},
     )
-    try:
-        user_id = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM]).get("sub")
-    except JWTError:
-        raise unauthorized from None
+    user_id = user_id_from_token(token)
     user = session.get(User, user_id) if user_id else None
     if not user:
         raise unauthorized
