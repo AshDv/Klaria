@@ -21,15 +21,19 @@ class Settings(BaseSettings):
     max_audio_mb: int = 50
     result_retention_days: int = 30
     terms_version: str = "2026-07-22"
-    privacy_version: str = "2026-07-22"
+    privacy_version: str = "2026-08-10"
     data_controller_name: str = ""
     data_controller_address: str = ""
     privacy_contact_email: str = "privacy@example.com"
 
     mistral_api_key: str | None = None
-    mistral_base_url: str = "https://api.mistral.ai/v1"
+    mistral_base_url: str = "https://api.eu.mistral.ai/v1"
     voxtral_model: str = "voxtral-mini-latest"
     summary_model: str = "mistral-medium-3-5"
+
+    vexa_api_url: str = "https://api.cloud.vexa.ai"
+    vexa_api_key: str | None = None
+    vexa_bot_name: str = "Scribe — prise de notes"
 
     google_client_id: str | None = None
     google_client_secret: str | None = None
@@ -56,6 +60,10 @@ class Settings(BaseSettings):
     @property
     def smtp_configured(self) -> bool:
         return bool(self.smtp_host and self.smtp_from_email)
+
+    @property
+    def vexa_configured(self) -> bool:
+        return bool(self.vexa_api_url and self.vexa_api_key)
 
     @property
     def legal_configured(self) -> bool:

@@ -29,6 +29,15 @@ class ConsentSessionStatus(str, enum.Enum):
     STOPPED = "stopped"
 
 
+class RemoteMeetingStatus(str, enum.Enum):
+    JOINING = "joining"
+    LIVE = "live"
+    FINALIZING = "finalizing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    STOPPED = "stopped"
+
+
 class User(SQLModel, table=True):
     id: str = Field(default_factory=new_id, primary_key=True)
     email: str = Field(index=True, unique=True)
@@ -63,6 +72,8 @@ class ConsentSession(SQLModel, table=True):
         index=True,
     )
     notice_confirmed_at: datetime | None = None
+    media_recording_enabled: bool = False
+    media_retention_days: int = 0
     created_at: datetime = Field(default_factory=utc_now)
     started_at: datetime | None = None
     stopped_at: datetime | None = None
@@ -121,7 +132,43 @@ class StructuredReport(SQLModel, table=True):
     open_questions_json: str
     risks_json: str
     coverage_json: str
+    podcast_json: str = "[]"
     generated_at: datetime = Field(default_factory=utc_now)
+
+
+class RemoteMeeting(SQLModel, table=True):
+    id: str = Field(default_factory=new_id, primary_key=True)
+    owner_id: str = Field(foreign_key="user.id", index=True)
+    consent_session_id: str = Field(foreign_key="consentsession.id", index=True, unique=True)
+    title: str
+    meeting_url: str
+    platform: str = Field(index=True)
+    native_id: str = Field(index=True)
+    language: str = "fr"
+    bot_name: str = "Scribe — prise de notes"
+    status: RemoteMeetingStatus = Field(default=RemoteMeetingStatus.JOINING, index=True)
+    provider_status: str | None = None
+    created_at: datetime = Field(default_factory=utc_now)
+    joined_at: datetime | None = None
+    ended_at: datetime | None = None
+    last_synced_at: datetime | None = None
+    duration_seconds: int = 0
+    media_recording_enabled: bool = False
+    media_retention_days: int = 0
+    provider_recording_id: int | None = None
+    provider_media_id: int | None = None
+    media_type: str | None = None
+    media_format: str | None = None
+    media_expires_at: datetime | None = None
+    transcript: str | None = None
+    segments_json: str = "[]"
+    report_json: str | None = None
+    welcome_posted_at: datetime | None = None
+    recap_posted_at: datetime | None = None
+    chat_error: str | None = None
+    provider_deleted_at: datetime | None = None
+    provider_cleanup_error: str | None = None
+    error: str | None = None
 
 
 # Ancien modèle conservé pour que les bases de développement existantes restent lisibles.
