@@ -5,7 +5,7 @@ import secrets
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import Session, select
 
@@ -18,11 +18,13 @@ from app.models import (
     ConsentSessionStatus,
     ParticipantConsent,
     Recording,
+    RemoteMeeting,
     SessionRecording,
     StructuredReport,
     User,
     utc_now,
 )
+from app.remote_processing import erase_provider_meeting, stop_and_erase_remote_meeting
 
 router = APIRouter(prefix="/api")
 
@@ -36,6 +38,8 @@ class SessionInput(BaseModel):
     title: str = Field(min_length=2, max_length=120)
     scheduled_at: datetime | None = None
     participants: list[ParticipantInput] = Field(min_length=1, max_length=30)
+    media_recording_enabled: bool = False
+    media_retention_days: int = Field(default=7, ge=1, le=30)
 
 
 class StartInput(BaseModel):
@@ -82,6 +86,8 @@ def session_detail(meeting: ConsentSession, db: Session) -> dict:
         "scheduled_at": meeting.scheduled_at,
         "status": meeting.status,
         "notice_confirmed_at": meeting.notice_confirmed_at,
+        "media_recording_enabled": meeting.media_recording_enabled,
+        "media_retention_days": meeting.media_retention_days,
         "all_consented": bool(participants) and all(is_active(item) for item in participants),
         "participants": [
             {
@@ -112,6 +118,10 @@ def create_session(
         owner_id=user.id,
         title=payload.title.strip(),
         scheduled_at=payload.scheduled_at,
+        media_recording_enabled=payload.media_recording_enabled,
+        media_retention_days=(
+            payload.media_retention_days if payload.media_recording_enabled else 0
+        ),
     )
     db.add(meeting)
     deliveries: list[tuple[ParticipantInput, str]] = []
@@ -132,7 +142,16 @@ def create_session(
     failed: list[str] = []
     for item, token in deliveries:
         try:
-            send_consent_email(item.name, str(item.email), meeting.title, token)
+            if meeting.media_recording_enabled:
+                send_consent_email(
+                    item.name,
+                    str(item.email),
+                    meeting.title,
+                    token,
+                    meeting.media_retention_days,
+                )
+            else:
+                send_consent_email(item.name, str(item.email), meeting.title, token)
         except EmailError:
             failed.append(str(item.email))
     result = session_detail(meeting, db)
@@ -216,9 +235,11 @@ def get_public_consent(token: str, db: Session = Depends(get_session)):
         "consented_at": consent.consented_at,
         "withdrawn_at": consent.withdrawn_at,
         "notice_version": consent.notice_version,
-        "processor": "Mistral AI",
+        "processor": "Vexa et Mistral AI",
         "privacy_contact": settings.privacy_contact_email,
         "retention_days": settings.result_retention_days,
+        "media_recording_enabled": bool(meeting and meeting.media_recording_enabled),
+        "media_retention_days": meeting.media_retention_days if meeting else 0,
     }
 
 
@@ -236,7 +257,11 @@ def accept_consent(token: str, db: Session = Depends(get_session)):
 
 
 @router.post("/public/consents/{token}/withdraw")
-def withdraw_consent(token: str, db: Session = Depends(get_session)):
+def withdraw_consent(
+    token: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_session),
+):
     consent = public_consent(token, db)
     consent.withdrawn_at = utc_now()
     meeting = db.get(ConsentSession, consent.session_id)
@@ -246,15 +271,25 @@ def withdraw_consent(token: str, db: Session = Depends(get_session)):
         db.add(meeting)
     db.add(consent)
     db.commit()
+    remote = db.exec(
+        select(RemoteMeeting).where(RemoteMeeting.consent_session_id == consent.session_id)
+    ).first()
+    if remote:
+        background_tasks.add_task(stop_and_erase_remote_meeting, remote.id)
     return {"status": "withdrawn", "withdrawn_at": consent.withdrawn_at}
 
 
 @router.delete("/public/consents/{token}/data", status_code=204)
-def erase_consent_data(token: str, db: Session = Depends(get_session)):
+def erase_consent_data(
+    token: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_session),
+):
     consent = public_consent(token, db)
     links = db.exec(
         select(SessionRecording).where(SessionRecording.session_id == consent.session_id)
     )
+    recordings = []
     for link in links:
         recording = db.get(Recording, link.recording_id)
         if recording:
@@ -270,8 +305,18 @@ def erase_consent_data(token: str, db: Session = Depends(get_session)):
             ).first()
             if report:
                 db.delete(report)
-            db.delete(recording)
+            recordings.append(recording)
         db.delete(link)
+    db.flush()
+    for recording in recordings:
+        db.delete(recording)
+    db.flush()
+    remote = db.exec(
+        select(RemoteMeeting).where(RemoteMeeting.consent_session_id == consent.session_id)
+    ).first()
+    if remote:
+        background_tasks.add_task(erase_provider_meeting, remote.platform, remote.native_id)
+        db.delete(remote)
     consent.name = "Données effacées"
     consent.email = ""
     consent.token_hash = token_hash(secrets.token_urlsafe(32))
