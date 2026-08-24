@@ -1,5 +1,6 @@
 """Client Voxtral : audio vers transcription."""
 
+import re
 from pathlib import Path
 
 import httpx
@@ -9,6 +10,15 @@ from app.config import settings
 
 class TranscriptionError(RuntimeError):
     pass
+
+
+def context_bias(values: list[str]) -> str:
+    """Formate les expressions selon le mode multipart attendu par Mistral."""
+    return ",".join(
+        item
+        for value in values[:100]
+        if (item := re.sub(r"[^\w-]+", "_", value.strip()).strip("_"))
+    )
 
 
 def transcribe_audio(
@@ -26,18 +36,25 @@ def transcribe_audio(
                 "diarize": "true",
             }
             if vocabulary:
-                data["context_bias"] = ",".join(vocabulary[:100])
+                data["context_bias"] = context_bias(vocabulary)
             response = httpx.post(
                 f"{settings.mistral_base_url}/audio/transcriptions",
                 headers={"Authorization": f"Bearer {settings.mistral_api_key}"},
                 data=data,
                 files={"file": (path.name, audio, content_type)},
-                timeout=300,
+                timeout=httpx.Timeout(90, connect=10),
             )
     except (OSError, httpx.HTTPError) as exc:
         raise TranscriptionError(f"Transcription indisponible : {exc}") from exc
     if response.status_code >= 400:
-        raise TranscriptionError(f"Voxtral a refusé l’audio ({response.status_code})")
+        try:
+            error = response.json()
+            detail = error.get("message") or error.get("detail") or error
+        except ValueError:
+            detail = response.text
+        raise TranscriptionError(
+            f"Voxtral a refusé l’audio ({response.status_code}) : {str(detail)[:300]}"
+        )
     data = response.json()
     text = str(data.get("text", "")).strip()
     if not text:
