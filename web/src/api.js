@@ -1,4 +1,5 @@
 let accessToken = localStorage.getItem("scribe_access_token");
+const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 export function setAccessToken(value) {
   accessToken = value;
@@ -8,14 +9,20 @@ export function setAccessToken(value) {
 
 export const isAuthenticated = () => Boolean(accessToken);
 
+export function remoteMeetingSocket(id) {
+  const base = API_BASE || window.location.origin;
+  const wsBase = base.replace(/^http/, "ws");
+  return new WebSocket(`${wsBase}/api/remote-meetings/${id}/live`, ["scribe", accessToken]);
+}
+
 async function request(path, options = {}) {
   const headers = new Headers(options.headers || {});
   if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
   if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
-  const response = await fetch(path, { ...options, headers });
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!response.ok) {
     let message = "Une erreur est survenue";
-    try { message = (await response.json()).detail || message; } catch {}
+    try { message = (await response.json()).detail || message; } catch { /* réponse non JSON */ }
     throw new Error(message);
   }
   return response.status === 204 ? null : response.json();
@@ -24,11 +31,6 @@ async function request(path, options = {}) {
 export const api = {
   health: () => request("/api/health"),
   me: () => request("/api/auth/me"),
-  legalNotices: () => request("/api/legal/notices"),
-  acceptLegal: () => request("/api/legal/accept", {
-    method: "POST",
-    body: JSON.stringify({ terms_accepted: true, privacy_accepted: true }),
-  }),
   register: async (fullName, email, password, termsAccepted, privacyAccepted) => {
     const data = await request("/api/auth/register", {
       method: "POST",
@@ -44,7 +46,7 @@ export const api = {
   },
   login: async (email, password) => {
     const body = new URLSearchParams({ username: email, password });
-    const response = await fetch("/api/auth/login", {
+    const response = await fetch(`${API_BASE}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
@@ -53,9 +55,26 @@ export const api = {
     const data = await response.json();
     setAccessToken(data.access_token);
   },
-  createConsentSession: (data) => request("/api/consent-sessions", {
+  googleSsoUrl: () => `${API_BASE}/api/auth/sso/google`,
+  microsoftSsoUrl: () => `${API_BASE}/api/auth/sso/microsoft`,
+  calendarStatus: () => request("/api/calendars"),
+  connectCalendar: (provider) => request(`/api/calendars/${provider}/connect`),
+  syncCalendars: () => request("/api/calendars/sync", { method: "POST" }),
+  calendarEvents: () => request("/api/calendar-events"),
+  configureCalendarEvent: (id, enabled, options = {}) => request(`/api/calendar-events/${id}/automation`, {
+    method: "PUT", body: JSON.stringify({ enabled, ...options }),
+  }),
+  disconnectCalendar: (id) => request(`/api/calendars/${id}`, { method: "DELETE" }),
+  listRecordings: () => request("/api/recordings"),
+  getRecording: (id) => request(`/api/recordings/${id}`),
+  legalNotices: () => request("/api/legal/notices"),
+  acceptLegal: () => request("/api/legal/accept", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ terms_accepted: true, privacy_accepted: true }),
+  }),
+  createConsentSession: (payload) => request("/api/consent-sessions", {
+    method: "POST",
+    body: JSON.stringify(payload),
   }),
   listConsentSessions: () => request("/api/consent-sessions"),
   getConsentSession: (id) => request(`/api/consent-sessions/${id}`),
@@ -76,8 +95,6 @@ export const api = {
   eraseConsentData: (token) => request(`/api/public/consents/${token}/data`, {
     method: "DELETE",
   }),
-  listRecordings: () => request("/api/recordings"),
-  getRecording: (id) => request(`/api/recordings/${id}`),
   createRecording: (title, audio, consent, consentSessionId) => {
     const form = new FormData();
     form.set("title", title);
@@ -87,6 +104,33 @@ export const api = {
     return request("/api/recordings", { method: "POST", body: form });
   },
   deleteRecording: (id) => request(`/api/recordings/${id}`, { method: "DELETE" }),
+  createRemoteMeeting: (payload) => request("/api/remote-meetings", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
+  listRemoteMeetings: () => request("/api/remote-meetings"),
+  getRemoteMeeting: (id) => request(`/api/remote-meetings/${id}`),
+  getRemoteMeetingMedia: (id) => request(`/api/remote-meetings/${id}/media-access`),
+  syncRemoteMeeting: (id) => request(`/api/remote-meetings/${id}/sync`, {
+    method: "POST",
+  }),
+  finishRemoteMeeting: (id) => request(`/api/remote-meetings/${id}/finish`, {
+    method: "POST",
+  }),
+  stopRemoteMeeting: (id) => request(`/api/remote-meetings/${id}/stop`, {
+    method: "POST",
+  }),
+  createPodcast: (id, payload) => request(`/api/remote-meetings/${id}/podcast`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
+  reanalyzeRemoteMeeting: (id) => request(`/api/remote-meetings/${id}/reanalyze`, {
+    method: "POST",
+  }),
+  deleteRemoteMeeting: (id) => request(`/api/remote-meetings/${id}`, {
+    method: "DELETE",
+  }),
+  workspaceOverview: () => request("/api/workspace/overview"),
   exportData: () => request("/api/privacy/export"),
   deleteAccount: () => request("/api/privacy/account", {
     method: "DELETE",
