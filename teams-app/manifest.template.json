@@ -1,0 +1,44 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.19/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.19",
+  "version": "1.0.0",
+  "id": "{{MICROSOFT_APP_ID}}",
+  "developer": {
+    "name": "Scribe",
+    "websiteUrl": "https://{{PUBLIC_DOMAIN}}",
+    "privacyUrl": "https://{{PUBLIC_DOMAIN}}/privacy-policy",
+    "termsOfUseUrl": "https://{{PUBLIC_DOMAIN}}/terms"
+  },
+  "name": { "short": "Scribe", "full": "Scribe, intelligence de réunion" },
+  "description": {
+    "short": "Transcriptions, décisions et actions dans Teams.",
+    "full": "Scribe transforme une réunion consentie en transcription, décisions, actions et brief audio."
+  },
+  "icons": { "outline": "outline.png", "color": "color.png" },
+  "accentColor": "#173E35",
+  "staticTabs": [
+    {
+      "entityId": "scribe-home",
+      "name": "Accueil",
+      "contentUrl": "https://{{PUBLIC_DOMAIN}}/?host=teams&view=dashboard",
+      "websiteUrl": "https://{{PUBLIC_DOMAIN}}/",
+      "scopes": ["personal"]
+    },
+    {
+      "entityId": "scribe-meetings",
+      "name": "Réunions",
+      "contentUrl": "https://{{PUBLIC_DOMAIN}}/?host=teams&view=meetings",
+      "websiteUrl": "https://{{PUBLIC_DOMAIN}}/",
+      "scopes": ["personal"]
+    },
+    {
+      "entityId": "scribe-actions",
+      "name": "Actions",
+      "contentUrl": "https://{{PUBLIC_DOMAIN}}/?host=teams&view=actions",
+      "websiteUrl": "https://{{PUBLIC_DOMAIN}}/",
+      "scopes": ["personal"]
+    }
+  ],
+  "permissions": ["identity"],
+  "validDomains": ["{{PUBLIC_DOMAIN}}"]
+}
