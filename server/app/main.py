@@ -11,6 +11,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.staticfiles import StaticFiles
 
+from app.calendar_routes import router as calendar_router
+from app.calendar_service import automation_loop
 from app.config import settings
 from app.consent_routes import router as consent_router
 from app.db import init_db
@@ -31,11 +33,19 @@ async def lifespan(_: FastAPI):
     init_db()
     purge_expired_data()
     retention_task = asyncio.create_task(retention_loop())
+    automation_task = (
+        asyncio.create_task(automation_loop()) if settings.automation_key else None
+    )
     bind_monitor_loop(asyncio.get_running_loop())
     resume_remote_monitors()
     yield
     retention_task.cancel()
-    await asyncio.gather(retention_task, return_exceptions=True)
+    if automation_task:
+        automation_task.cancel()
+    await asyncio.gather(
+        *[task for task in (retention_task, automation_task) if task],
+        return_exceptions=True,
+    )
     await stop_remote_monitors()
 
 
@@ -58,9 +68,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         if settings.environment == "production":
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return response
 
 
@@ -75,13 +83,14 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_list,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type", "X-Automation-Key"],
 )
 app.include_router(router)
 app.include_router(consent_router)
 app.include_router(legal_router)
 app.include_router(remote_router)
+app.include_router(calendar_router)
 
 
 @app.get("/api/health")
@@ -90,10 +99,13 @@ def health():
         "status": "ok",
         "mistral_configured": bool(settings.mistral_api_key),
         "google_sso_configured": settings.google_sso_configured,
+        "microsoft_sso_configured": settings.microsoft_sso_configured,
         "email_configured": settings.smtp_configured,
         "legal_configured": settings.legal_configured,
         "summary_model": settings.summary_model,
         "meeting_bot_configured": settings.vexa_configured,
+        "microsoft_calendar_configured": settings.microsoft_calendar_configured,
+        "calendar_automation_configured": bool(settings.automation_key),
     }
 
 
