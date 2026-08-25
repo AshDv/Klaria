@@ -32,14 +32,15 @@ export function PublicConsent({ token }) {
       <li>Votre voix et vos propos seront enregistrés.</li>
       <li>L’audio sera transmis à {notice.processor} pour transcription et diarisation.</li>
       <li>La transcription sera analysée pour produire le résumé, les décisions et les actions.</li>
-      <li>L’audio sera supprimé après le traitement.</li>
+      <li>{notice.media_recording_enabled ? `Vous acceptez aussi la conservation du replay audio pendant ${notice.media_retention_days} jour${notice.media_retention_days > 1 ? "s" : ""} maximum.` : "L’audio sera supprimé après le traitement."}</li>
+      <li>Scribe ne copie ni la vidéo ni le partage d’écran. Un éventuel replay natif reste géré par Meet ou Teams.</li>
       <li>Les résultats seront conservés au maximum {notice.retention_days} jours.</li>
       <li>Vous pouvez retirer votre accord ou demander l’effacement depuis cette page.</li>
     </ul>
     <p className="privacy-hint">Contact : {notice.privacy_contact}</p>
     {message && <div className="alert success">{message}</div>}
     <div className="control-row">
-      {!active && <button className="primary-button compact" onClick={() => act(api.acceptConsent)}>J’accepte l’enregistrement</button>}
+      {!active && <button className="primary-button compact" onClick={() => act(api.acceptConsent)}>{notice.media_recording_enabled ? "J’accepte la transcription et le replay audio" : "J’accepte la transcription"}</button>}
       {!active && !notice.withdrawn_at && <button className="stop-button" onClick={() => act(api.withdrawConsent)}>Je refuse</button>}
       {active && <button className="stop-button" onClick={() => act(api.withdrawConsent)}>Retirer mon consentement</button>}
       <button className="secondary-button" onClick={async () => {
@@ -51,8 +52,32 @@ export function PublicConsent({ token }) {
   </PublicShell>;
 }
 
-function PublicShell({ children }) {
+export function PublicShell({ children }) {
   return <main className="public-page"><section className="content-card public-card"><div className="brand"><span className="brand-mark">S</span><span>Scribe</span></div>{children}</section></main>;
+}
+
+export function PublicLegal({ type }) {
+  const [notice, setNotice] = useState(null);
+  useEffect(() => { api.legalNotices().then(setNotice); }, []);
+  if (!notice) return <PublicShell><p>Chargement…</p></PublicShell>;
+  if (type === "terms") return <PublicShell>
+    <span className="eyebrow">Conditions d’utilisation · {notice.terms_version}</span>
+    <h1>Utiliser Scribe de façon responsable</h1>
+    <p>Scribe aide l’organisateur à transcrire et résumer une réunion. Il reste responsable de la réunion, de l’exactitude des informations fournies et du respect des droits des participants.</p>
+    <ul className="notice-list"><li>Aucune capture ne doit commencer avant les consentements requis.</li><li>Le compte rendu généré par l’IA doit être relu avant toute décision.</li><li>Les accès au compte et aux agendas ne doivent pas être partagés.</li><li>Un participant peut retirer son accord et demander l’effacement.</li></ul>
+    <p>Contact : <a href={`mailto:${notice.privacy_contact}`}>{notice.privacy_contact}</a></p>
+  </PublicShell>;
+  return <PublicShell>
+    <span className="eyebrow">Politique de confidentialité · {notice.privacy_version}</span>
+    <h1>Vos données, clairement</h1>
+    <p><strong>Responsable du traitement :</strong> {notice.controller}, {notice.controller_address}</p>
+    <h3>Données et traitements</h3><ul className="notice-list">{notice.processing.map((item) => <li key={item}>{item}</li>)}</ul>
+    <h3>Finalités</h3><ul className="notice-list">{notice.purposes.map((item) => <li key={item}>{item}</li>)}</ul>
+    <h3>Bases légales</h3><ul className="notice-list">{notice.legal_bases.map((item) => <li key={item}>{item}</li>)}</ul>
+    <h3>Destinataires</h3><ul className="notice-list">{notice.recipients.map((item) => <li key={item}>{item}</li>)}</ul>
+    <h3>Vos droits</h3><ul className="notice-list">{notice.rights.map((item) => <li key={item}>{item}</li>)}</ul>
+    <p>Contact : <a href={`mailto:${notice.privacy_contact}`}>{notice.privacy_contact}</a></p>
+  </PublicShell>;
 }
 
 export function LegalGate({ onAccepted }) {
