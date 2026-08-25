@@ -38,6 +38,16 @@ class RemoteMeetingStatus(str, enum.Enum):
     STOPPED = "stopped"
 
 
+class CalendarProvider(str, enum.Enum):
+    GOOGLE = "google"
+    MICROSOFT = "microsoft"
+
+
+class CalendarEventStatus(str, enum.Enum):
+    SCHEDULED = "scheduled"
+    CANCELLED = "cancelled"
+
+
 class User(SQLModel, table=True):
     id: str = Field(default_factory=new_id, primary_key=True)
     email: str = Field(index=True, unique=True)
@@ -52,6 +62,42 @@ class ExternalIdentity(SQLModel, table=True):
     provider: str = Field(index=True)
     subject: str = Field(index=True, unique=True)
     created_at: datetime = Field(default_factory=utc_now)
+
+
+class CalendarConnection(SQLModel, table=True):
+    id: str = Field(default_factory=new_id, primary_key=True)
+    user_id: str = Field(foreign_key="user.id", index=True)
+    provider: CalendarProvider = Field(index=True)
+    account_email: str = Field(index=True)
+    access_token: str
+    refresh_token: str | None = None
+    token_expires_at: datetime | None = None
+    scopes: str = ""
+    active: bool = Field(default=True, index=True)
+    auto_join_tagged: bool = True
+    last_synced_at: datetime | None = None
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class CalendarEvent(SQLModel, table=True):
+    id: str = Field(default_factory=new_id, primary_key=True)
+    owner_id: str = Field(foreign_key="user.id", index=True)
+    connection_id: str = Field(foreign_key="calendarconnection.id", index=True)
+    provider_event_id: str = Field(index=True)
+    title: str
+    starts_at: datetime = Field(index=True)
+    ends_at: datetime | None = None
+    meeting_url: str
+    organizer_email: str | None = None
+    attendees_json: str = "[]"
+    status: CalendarEventStatus = Field(default=CalendarEventStatus.SCHEDULED, index=True)
+    auto_join: bool = Field(default=False, index=True)
+    consent_session_id: str | None = Field(default=None, foreign_key="consentsession.id")
+    remote_meeting_id: str | None = Field(default=None, foreign_key="remotemeeting.id")
+    invitation_errors_json: str = "[]"
+    bot_started_at: datetime | None = None
+    last_synced_at: datetime = Field(default_factory=utc_now)
 
 
 class UserAgreement(SQLModel, table=True):
