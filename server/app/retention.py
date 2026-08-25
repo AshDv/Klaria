@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 from app.config import settings
 from app.db import engine
 from app.models import (
+    CalendarEvent,
     ConsentSession,
     ParticipantConsent,
     Recording,
@@ -34,6 +35,9 @@ def purge_expired_data() -> None:
             remote.provider_recording_id = None
             remote.provider_media_id = None
             session.add(remote)
+        for event in session.exec(select(CalendarEvent).where(CalendarEvent.starts_at < cutoff)):
+            session.delete(event)
+        session.flush()
         for remote in session.exec(select(RemoteMeeting).where(RemoteMeeting.created_at < cutoff)):
             if settings.vexa_configured and not remote.provider_deleted_at:
                 erase_provider_meeting(remote.platform, remote.native_id)

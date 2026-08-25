@@ -10,6 +10,8 @@ from app.auth import current_user
 from app.config import settings
 from app.db import get_session
 from app.models import (
+    CalendarConnection,
+    CalendarEvent,
     ConsentSession,
     ExternalIdentity,
     ParticipantConsent,
@@ -74,11 +76,17 @@ def legal_notices():
             "Compte : e-mail, nom, mot de passe hashé et accords.",
             "Réunion : noms et e-mails des invités jusqu’à suppression.",
             "Audio : transmis à Mistral AI pour transcription, puis supprimé.",
-            "Réunion en ligne : audio transcrit en direct par Vexa sans enregistrement activé.",
+            "Réunion en ligne : audio transcrit en direct par Vexa. Le replay audio reste "
+            "désactivé par défaut et n’est conservé que si l’organisateur le demande, si "
+            "chaque participant accepte et pendant la durée annoncée.",
+            "Vidéo et partage d’écran : Scribe ne les copie pas. Lorsqu’un replay natif est "
+            "fourni par Meet ou Teams, le compte rendu affiche seulement le lien du fournisseur.",
             "Chat de réunion : consulté sans stockage pour détecter STOP SCRIBE et "
             "publier le récapitulatif.",
             "Participants : noms et e-mails renseignés par l’organisateur pour recueillir "
             "les accords avant la capture.",
+            "Agenda connecté : adresse du compte, titres, horaires, liens et invités des "
+            "réunions à venir. Les jetons Google ou Microsoft sont chiffrés.",
             "Résultats : transcription, intervenants et compte rendu pendant "
             f"{settings.result_retention_days} jours au maximum.",
         ],
@@ -92,7 +100,12 @@ def legal_notices():
             "Consentement : enregistrement et analyse de la réunion.",
             "Obligation légale : réponse aux demandes d’exercice des droits.",
         ],
-        "recipients": ["Organisateur de la réunion", "Mistral AI", "Vexa"],
+        "recipients": [
+            "Organisateur de la réunion",
+            "Google ou Microsoft si l’agenda est connecté",
+            "Mistral AI",
+            "Vexa",
+        ],
         "processors": ["Mistral AI", "Vexa"],
         "rights": [
             "Retirer son consentement à tout moment.",
@@ -122,6 +135,13 @@ def export_data(
     remote_meetings = db.exec(select(RemoteMeeting).where(RemoteMeeting.owner_id == user.id))
     meetings = db.exec(select(ConsentSession).where(ConsentSession.owner_id == user.id))
     agreements = db.exec(select(UserAgreement).where(UserAgreement.user_id == user.id))
+    calendar_connections = list(
+        db.exec(select(CalendarConnection).where(CalendarConnection.user_id == user.id))
+    )
+    connection_ids = {item.id for item in calendar_connections}
+    calendar_events = [
+        item for item in db.exec(select(CalendarEvent)) if item.connection_id in connection_ids
+    ]
     return {
         "user": {
             "id": user.id,
@@ -134,6 +154,14 @@ def export_data(
         "recordings": [item.model_dump(exclude={"owner_id", "audio_path"}) for item in recordings],
         "remote_meetings": [
             item.model_dump(exclude={"owner_id", "meeting_url"}) for item in remote_meetings
+        ],
+        "calendar_connections": [
+            item.model_dump(exclude={"id", "user_id", "access_token", "refresh_token"})
+            for item in calendar_connections
+        ],
+        "calendar_events": [
+            item.model_dump(exclude={"owner_id", "connection_id", "meeting_url"})
+            for item in calendar_events
         ],
     }
 
@@ -161,6 +189,10 @@ def delete_account(
     meetings = list(db.exec(select(ConsentSession).where(ConsentSession.owner_id == user.id)))
     remote_meetings = list(db.exec(select(RemoteMeeting).where(RemoteMeeting.owner_id == user.id)))
     meeting_ids = {item.id for item in meetings}
+    calendar_connections = list(
+        db.exec(select(CalendarConnection).where(CalendarConnection.user_id == user.id))
+    )
+    connection_ids = {item.id for item in calendar_connections}
 
     # Supprimer et vider les enfants avant leurs parents pour respecter les FK PostgreSQL.
     for link in list(db.exec(select(SessionRecording))):
@@ -189,6 +221,11 @@ def delete_account(
         db.delete(remote)
     for agreement in db.exec(select(UserAgreement).where(UserAgreement.user_id == user.id)):
         db.delete(agreement)
+    for event in list(db.exec(select(CalendarEvent))):
+        if event.connection_id in connection_ids:
+            db.delete(event)
+    for connection in calendar_connections:
+        db.delete(connection)
     for identity in db.exec(select(ExternalIdentity).where(ExternalIdentity.user_id == user.id)):
         db.delete(identity)
     db.flush()
