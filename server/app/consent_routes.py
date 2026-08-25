@@ -4,6 +4,7 @@ import hashlib
 import secrets
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field
@@ -40,6 +41,7 @@ class SessionInput(BaseModel):
     participants: list[ParticipantInput] = Field(min_length=1, max_length=30)
     media_recording_enabled: bool = False
     media_retention_days: int = Field(default=7, ge=1, le=30)
+    platform: Literal["google_meet", "teams", "in_person"] = "in_person"
 
 
 class StartInput(BaseModel):
@@ -102,12 +104,12 @@ def session_detail(meeting: ConsentSession, db: Session) -> dict:
     }
 
 
-@router.post("/consent-sessions", status_code=201)
-def create_session(
+def create_consent_session(
+    owner_id: str,
     payload: SessionInput,
-    user: User = Depends(current_user),
-    db: Session = Depends(get_session),
-):
+    db: Session,
+) -> tuple[ConsentSession, list[str]]:
+    """Crée la session et envoie une invitation unique à chaque participant."""
     if not settings.smtp_configured:
         raise HTTPException(503, "Configurez SMTP avant d’inviter les participants")
     emails = [str(item.email).lower() for item in payload.participants]
@@ -115,7 +117,7 @@ def create_session(
         raise HTTPException(400, "Chaque participant doit avoir une adresse unique")
 
     meeting = ConsentSession(
-        owner_id=user.id,
+        owner_id=owner_id,
         title=payload.title.strip(),
         scheduled_at=payload.scheduled_at,
         media_recording_enabled=payload.media_recording_enabled,
@@ -139,21 +141,33 @@ def create_session(
         deliveries.append((item, token))
     db.commit()
 
+    owner = db.get(User, owner_id)
     failed: list[str] = []
     for item, token in deliveries:
         try:
-            if meeting.media_recording_enabled:
-                send_consent_email(
-                    item.name,
-                    str(item.email),
-                    meeting.title,
-                    token,
-                    meeting.media_retention_days,
-                )
-            else:
-                send_consent_email(item.name, str(item.email), meeting.title, token)
+            send_consent_email(
+                item.name,
+                str(item.email),
+                meeting.title,
+                token,
+                meeting.media_retention_days,
+                meeting.scheduled_at,
+                owner.full_name if owner else None,
+                owner.email if owner else None,
+                payload.platform,
+            )
         except EmailError:
             failed.append(str(item.email))
+    return meeting, failed
+
+
+@router.post("/consent-sessions", status_code=201)
+def create_session(
+    payload: SessionInput,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_session),
+):
+    meeting, failed = create_consent_session(user.id, payload, db)
     result = session_detail(meeting, db)
     result["delivery_errors"] = failed
     return result
