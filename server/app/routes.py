@@ -47,6 +47,17 @@ if settings.google_sso_configured:
         server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
         client_kwargs={"scope": "openid email profile"},
     )
+if settings.microsoft_sso_configured:
+    oauth.register(
+        name="microsoft",
+        client_id=settings.microsoft_client_id,
+        client_secret=settings.microsoft_client_secret,
+        server_metadata_url=(
+            f"https://login.microsoftonline.com/{settings.microsoft_tenant}/v2.0/"
+            ".well-known/openid-configuration"
+        ),
+        client_kwargs={"scope": "openid email profile User.Read"},
+    )
 
 ALLOWED_AUDIO = {
     "audio/webm": ".webm",
@@ -69,6 +80,43 @@ class RegisterInput(BaseModel):
 
 def token_response(user: User) -> dict:
     return {"access_token": create_access_token(user.id), "token_type": "bearer"}
+
+
+def sso_user(
+    provider: str,
+    subject: str,
+    email: str,
+    full_name: str | None,
+    session: Session,
+) -> User:
+    """Lie une identité vérifiée sans dupliquer la création de compte."""
+    identity = session.exec(
+        select(ExternalIdentity).where(
+            ExternalIdentity.provider == provider,
+            ExternalIdentity.subject == subject,
+        )
+    ).first()
+    user = session.get(User, identity.user_id) if identity else None
+    if user:
+        return user
+    user = session.exec(select(User).where(User.email == email)).first()
+    if not user:
+        user = User(
+            email=email,
+            full_name=(full_name or email.split("@")[0]).strip(),
+            hashed_password=f"!{provider}-sso",
+        )
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+    session.add(ExternalIdentity(user_id=user.id, provider=provider, subject=subject))
+    session.commit()
+    return user
+
+
+def sso_redirect(user: User) -> RedirectResponse:
+    access_token = quote(create_access_token(user.id), safe="")
+    return RedirectResponse(f"{settings.frontend_url.rstrip('/')}/#access_token={access_token}")
 
 
 @router.post("/auth/register", status_code=201)
@@ -122,30 +170,43 @@ async def google_callback(request: Request, session: Session = Depends(get_sessi
     if not profile.get("email") or profile.get("email_verified") is False:
         raise HTTPException(400, "Google n’a pas confirmé cette adresse e-mail")
 
-    subject = str(profile["sub"])
-    identity = session.exec(
-        select(ExternalIdentity).where(
-            ExternalIdentity.provider == "google", ExternalIdentity.subject == subject
-        )
-    ).first()
-    user = session.get(User, identity.user_id) if identity else None
-    if not user:
-        email = str(profile["email"]).lower()
-        user = session.exec(select(User).where(User.email == email)).first()
-        if not user:
-            user = User(
-                email=email,
-                full_name=profile.get("name") or email.split("@")[0],
-                hashed_password="!google-sso",
-            )
-            session.add(user)
-            session.commit()
-            session.refresh(user)
-        session.add(ExternalIdentity(user_id=user.id, provider="google", subject=subject))
-        session.commit()
+    user = sso_user(
+        "google",
+        str(profile["sub"]),
+        str(profile["email"]).lower(),
+        profile.get("name"),
+        session,
+    )
+    return sso_redirect(user)
 
-    access_token = quote(create_access_token(user.id), safe="")
-    return RedirectResponse(f"{settings.frontend_url.rstrip('/')}/#access_token={access_token}")
+
+@router.get("/auth/sso/microsoft")
+async def microsoft_login(request: Request):
+    if not settings.microsoft_sso_configured:
+        raise HTTPException(503, "La connexion Microsoft n’est pas encore configurée")
+    callback = f"{settings.api_public_url.rstrip('/')}/api/auth/sso/microsoft/callback"
+    return await oauth.microsoft.authorize_redirect(request, callback)
+
+
+@router.get("/auth/sso/microsoft/callback")
+async def microsoft_sso_callback(
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    if not settings.microsoft_sso_configured:
+        raise HTTPException(503, "La connexion Microsoft n’est pas configurée")
+    try:
+        token = await oauth.microsoft.authorize_access_token(request)
+        profile = token.get("userinfo") or await oauth.microsoft.userinfo(token=token)
+    except OAuthError as exc:
+        raise HTTPException(400, "La connexion Microsoft a échoué") from exc
+    email = str(profile.get("email") or profile.get("preferred_username") or "").lower()
+    subject = str(profile.get("sub") or "")
+    if not email or not subject:
+        raise HTTPException(400, "Microsoft n’a pas fourni une identité exploitable")
+    return sso_redirect(
+        sso_user("microsoft", subject, email, profile.get("name"), session)
+    )
 
 
 @router.get("/auth/me")
@@ -209,7 +270,7 @@ def recording_detail(recording: Recording, session: Session | None = None) -> di
     return result
 
 
-@router.post("/recordings", status_code=202)
+@router.post("/recordings", status_code=201)
 async def create_recording(
     title: str = Form(..., min_length=1, max_length=120),
     consent: bool = Form(...),
