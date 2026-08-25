@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     max_audio_mb: int = 50
     result_retention_days: int = 30
     terms_version: str = "2026-07-22"
-    privacy_version: str = "2026-08-10"
+    privacy_version: str = "2026-08-21"
     data_controller_name: str = ""
     data_controller_address: str = ""
     privacy_contact_email: str = "privacy@example.com"
@@ -37,6 +37,22 @@ class Settings(BaseSettings):
 
     google_client_id: str | None = None
     google_client_secret: str | None = None
+    google_calendar_scopes: str = (
+        "openid email profile https://www.googleapis.com/auth/calendar.events.readonly "
+        "https://www.googleapis.com/auth/meetings.space.readonly"
+    )
+
+    microsoft_client_id: str | None = None
+    microsoft_client_secret: str | None = None
+    microsoft_tenant: str = "common"
+    microsoft_calendar_scopes: str = "openid profile email offline_access Calendars.Read"
+
+    token_encryption_key: str | None = None
+    automation_key: str | None = None
+    calendar_sync_minutes: int = 1
+    automation_interval_seconds: int = 15
+    bot_join_seconds_before: int = 180
+    bot_join_grace_minutes: int = 10
 
     smtp_host: str | None = None
     smtp_port: int = 587
@@ -56,6 +72,14 @@ class Settings(BaseSettings):
     @property
     def google_sso_configured(self) -> bool:
         return bool(self.google_client_id and self.google_client_secret)
+
+    @property
+    def microsoft_calendar_configured(self) -> bool:
+        return bool(self.microsoft_client_id and self.microsoft_client_secret)
+
+    @property
+    def microsoft_sso_configured(self) -> bool:
+        return self.microsoft_calendar_configured
 
     @property
     def smtp_configured(self) -> bool:
