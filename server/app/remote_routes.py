@@ -18,10 +18,13 @@ from app.config import settings
 from app.consent_routes import is_active, participants_for
 from app.db import engine, get_session
 from app.llm import SummaryError, generate_podcast
+from app.meeting_artifacts import google_meet_context
 from app.meeting_skills import public_skills
 from app.models import (
+    CalendarEvent,
     ConsentSession,
     ConsentSessionStatus,
+    ParticipantConsent,
     Recording,
     RemoteMeeting,
     RemoteMeetingStatus,
@@ -56,8 +59,7 @@ class PodcastInput(BaseModel):
 async def remote_meeting_live(websocket: WebSocket, meeting_id: str):
     """Relaie le WebSocket Vexa sans exposer sa clé au navigateur."""
     protocols = [
-        item.strip()
-        for item in websocket.headers.get("sec-websocket-protocol", "").split(",")
+        item.strip() for item in websocket.headers.get("sec-websocket-protocol", "").split(",")
     ]
     user_id = user_id_from_token(protocols[1]) if len(protocols) == 2 else None
     with Session(engine) as db:
@@ -154,6 +156,59 @@ def remote_detail(meeting: RemoteMeeting) -> dict:
     }
 
 
+def launch_remote_meeting(
+    consent: ConsentSession,
+    user: User,
+    meeting_url: str,
+    language: str,
+    db: Session,
+) -> RemoteMeeting:
+    """Lance Vexa une seule fois pour une session de consentement autorisée."""
+    existing = db.exec(
+        select(RemoteMeeting).where(RemoteMeeting.consent_session_id == consent.id)
+    ).first()
+    if existing and existing.status != RemoteMeetingStatus.FAILED:
+        return existing
+    platform, native_id, _ = vexa.parse_url(meeting_url)
+    safe_url = (
+        f"https://meet.google.com/{native_id}"
+        if platform == "google_meet"
+        else f"https://teams.live.com/meet/{native_id}"
+    )
+    meeting = existing or RemoteMeeting(
+        owner_id=user.id,
+        consent_session_id=consent.id,
+        title=consent.title,
+        meeting_url=safe_url,
+        platform=platform,
+        native_id=native_id,
+        language=language,
+        bot_name=settings.vexa_bot_name,
+        media_recording_enabled=consent.media_recording_enabled,
+        media_retention_days=consent.media_retention_days,
+    )
+    meeting.status = RemoteMeetingStatus.JOINING
+    meeting.error = None
+    db.add(meeting)
+    db.commit()
+    db.refresh(meeting)
+    try:
+        vexa.send_bot(meeting_url, language, consent.media_recording_enabled)
+    except vexa.VexaError as exc:
+        meeting.status = RemoteMeetingStatus.FAILED
+        meeting.error = str(exc)
+        db.add(meeting)
+        db.commit()
+        raise
+    meeting.joined_at = utc_now()
+    meeting.provider_status = "requested"
+    db.add(meeting)
+    db.commit()
+    db.refresh(meeting)
+    watch_remote_meeting(meeting.id)
+    return meeting
+
+
 @router.post("/remote-meetings", status_code=201)
 def create_remote_meeting(
     payload: RemoteMeetingInput,
@@ -170,54 +225,16 @@ def create_remote_meeting(
         raise HTTPException(409, "Le consentement de la réunion n'est pas actif")
     if not all(is_active(item) for item in participants):
         raise HTTPException(409, "Tous les participants doivent encore être d'accord")
-    existing = db.exec(
-        select(RemoteMeeting).where(RemoteMeeting.consent_session_id == consent.id)
-    ).first()
-    if existing:
-        return remote_detail(existing)
-
     try:
-        platform, native_id, _ = vexa.parse_url(payload.meeting_url)
-    except vexa.VexaError as exc:
-        raise HTTPException(422, str(exc)) from exc
-    safe_url = (
-        f"https://meet.google.com/{native_id}"
-        if platform == "google_meet"
-        else f"https://teams.live.com/meet/{native_id}"
-    )
-    meeting = RemoteMeeting(
-        owner_id=user.id,
-        consent_session_id=consent.id,
-        title=consent.title,
-        meeting_url=safe_url,
-        platform=platform,
-        native_id=native_id,
-        language=payload.language,
-        bot_name=settings.vexa_bot_name,
-        media_recording_enabled=consent.media_recording_enabled,
-        media_retention_days=consent.media_retention_days,
-    )
-    db.add(meeting)
-    db.commit()
-    db.refresh(meeting)
-    try:
-        vexa.send_bot(
+        meeting = launch_remote_meeting(
+            consent,
+            user,
             payload.meeting_url,
             payload.language,
-            consent.media_recording_enabled,
+            db,
         )
     except vexa.VexaError as exc:
-        meeting.status = RemoteMeetingStatus.FAILED
-        meeting.error = str(exc)
-        db.add(meeting)
-        db.commit()
         raise HTTPException(502, str(exc)) from exc
-    meeting.joined_at = utc_now()
-    meeting.provider_status = "requested"
-    db.add(meeting)
-    db.commit()
-    db.refresh(meeting)
-    watch_remote_meeting(meeting.id)
     return remote_detail(meeting)
 
 
@@ -240,7 +257,23 @@ def get_remote_meeting(
     user: User = Depends(current_user),
     db: Session = Depends(get_session),
 ):
-    return remote_detail(owned_remote(meeting_id, user, db))
+    meeting = owned_remote(meeting_id, user, db)
+    report = json.loads(meeting.report_json or "{}")
+    artifacts = report.get("provider_artifacts") or {}
+    if (
+        meeting.status == RemoteMeetingStatus.COMPLETED
+        and meeting.platform == "google_meet"
+        and not artifacts.get("recordings")
+    ):
+        with suppress(Exception):
+            refreshed = google_meet_context(meeting, db)
+            if refreshed.get("participants") or refreshed.get("recordings"):
+                report["provider_artifacts"] = refreshed
+                meeting.report_json = json.dumps(report, ensure_ascii=False)
+                db.add(meeting)
+                db.commit()
+                db.refresh(meeting)
+    return remote_detail(meeting)
 
 
 @router.get("/remote-meetings/{meeting_id}/media-access")
@@ -260,7 +293,7 @@ def get_remote_meeting_media_access(
             "sub": meeting.owner_id,
             "meeting": meeting.id,
             "scope": "meeting_media",
-            "exp": utc_now() + timedelta(minutes=10),
+            "exp": utc_now() + timedelta(hours=2),
         },
         settings.secret_key,
         algorithm="HS256",
@@ -268,7 +301,7 @@ def get_remote_meeting_media_access(
     base = settings.api_public_url.rstrip("/")
     return {
         "url": f"{base}/api/remote-meetings/{meeting.id}/media?access={token}",
-        "expires_in": 600,
+        "expires_in": 7200,
     }
 
 
@@ -443,7 +476,27 @@ def delete_remote_meeting(
             vexa.delete_meeting(meeting.platform, meeting.native_id)
         except vexa.VexaError as exc:
             raise HTTPException(502, str(exc)) from exc
+
+    calendar_events = list(
+        db.exec(select(CalendarEvent).where(CalendarEvent.remote_meeting_id == meeting.id))
+    )
+    participants = list(
+        db.exec(
+            select(ParticipantConsent).where(
+                ParticipantConsent.session_id == meeting.consent_session_id
+            )
+        )
+    )
+    consent = db.get(ConsentSession, meeting.consent_session_id)
+
+    for event in calendar_events:
+        db.delete(event)
+    for participant in participants:
+        db.delete(participant)
     db.delete(meeting)
+    db.flush()
+    if consent:
+        db.delete(consent)
     db.commit()
 
 
