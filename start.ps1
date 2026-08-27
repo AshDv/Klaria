@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 $projectRoot = $PSScriptRoot
 $serverPath = Join-Path $projectRoot "server"
 $webPath = Join-Path $projectRoot "web"

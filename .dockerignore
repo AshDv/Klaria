@@ -1,0 +1,15 @@
+.git
+.pytest_cache
+.ruff_cache
+**/.env
+**/.venv
+**/node_modules
+**/dist
+**/__pycache__
+*.db
+*.sqlite*
+data
+outputs
+team-*
+tmp
+test
