@@ -11,6 +11,7 @@ from app import vexa
 from app.config import settings
 from app.db import engine
 from app.llm import SummaryError, generate_summary
+from app.meeting_artifacts import confirm_speaker_names, google_meet_context, report_quality
 from app.models import (
     ConsentSession,
     ConsentSessionStatus,
@@ -237,7 +238,14 @@ def finalize_remote_meeting(meeting_id: str) -> None:
                     break
                 time.sleep(1)
 
-        meeting.report_json = report.model_dump_json()
+        report_data = report.model_dump()
+        artifacts = {"provider": meeting.platform, "participants": [], "recordings": []}
+        with suppress(Exception):
+            artifacts = google_meet_context(meeting, db)
+        confirm_speaker_names(report_data, artifacts.get("participants", []))
+        report_data["provider_artifacts"] = artifacts
+        report_data["quality"] = report_quality(report_data, segments)
+        meeting.report_json = json.dumps(report_data, ensure_ascii=False)
         meeting.status = RemoteMeetingStatus.COMPLETED
         meeting.ended_at = utc_now()
         if consent:
@@ -290,7 +298,18 @@ def reanalyze_remote_meeting(meeting_id: str) -> None:
             meeting.status = RemoteMeetingStatus.FAILED
             meeting.error = str(exc)
         else:
-            meeting.report_json = report.model_dump_json()
+            previous = json.loads(meeting.report_json or "{}")
+            report_data = report.model_dump()
+            report_data["provider_artifacts"] = previous.get(
+                "provider_artifacts",
+                {"provider": meeting.platform, "participants": [], "recordings": []},
+            )
+            confirm_speaker_names(
+                report_data,
+                report_data["provider_artifacts"].get("participants", []),
+            )
+            report_data["quality"] = report_quality(report_data, segments)
+            meeting.report_json = json.dumps(report_data, ensure_ascii=False)
             meeting.status = RemoteMeetingStatus.COMPLETED
             meeting.error = None
         db.add(meeting)
