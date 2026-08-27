@@ -119,7 +119,7 @@ def test_recordings_are_private_and_deletable(monkeypatch):
             },
             files={"audio": ("sample.webm", b"audio-data", "audio/webm")},
         )
-        assert created.status_code == 202
+        assert created.status_code == 201
         assert created.json()["consent_version"]
         recording_id = created.json()["id"]
         assert (
@@ -136,7 +136,8 @@ def test_consent_blocks_start_and_withdrawal_stops(monkeypatch):
     monkeypatch.setattr("app.config.settings.smtp_from_email", "scribe@example.com")
     monkeypatch.setattr(
         "app.consent_routes.send_consent_email",
-        lambda _name, _email, _title, token: tokens.append(token),
+        lambda name, email, title, token, retention_days, scheduled_at, owner_name, owner_email,
+        platform: tokens.append(token),
     )
     with TestClient(app) as client:
         token = register(client)
