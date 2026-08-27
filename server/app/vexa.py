@@ -214,12 +214,17 @@ def get_chat(platform: str, native_id: str) -> list[dict]:
 def delete_meeting(platform: str, native_id: str) -> None:
     try:
         response = httpx.delete(
-            _endpoint(f"/meetings/{platform}/{native_id}"), headers=_headers(), timeout=20
+            _endpoint(f"/meetings/{platform}/{native_id}"),
+            headers=_headers(),
+            timeout=20,
         )
     except httpx.HTTPError as exc:
         raise VexaError(f"Impossible d'effacer les données Vexa : {exc}") from exc
     if response.status_code >= 400 and response.status_code != 404:
-        raise VexaError(f"Vexa n'a pas effacé la réunion ({response.status_code})")
+        raise VexaError(
+            f"Vexa n'a pas effacé la réunion ({response.status_code}): "
+            f"{response.text[:200]}"
+        )
 
 
 def _timestamp(value) -> float | None:
@@ -255,6 +260,8 @@ def _relative_time(item: dict, field: str, base: float | None) -> float:
 
 
 def _same_mutable_segment(left: dict, right: dict) -> bool:
+    if left.get("segment_uid") and left["segment_uid"] == right.get("segment_uid"):
+        return True
     if left["speaker"] != right["speaker"] or abs(left["start"] - right["start"]) > 2:
         return False
     left_text, right_text = _plain_text(left["text"]), _plain_text(right["text"])
@@ -280,7 +287,7 @@ def normalize_segments(data: dict) -> list[dict]:
         candidates.append(
             {
                 "id": 0,
-                "segment_uid": item.get("session_uid") or item.get("segment_id"),
+                "segment_uid": item.get("segment_id") or item.get("utterance_id"),
                 "start": round(start, 3),
                 "end": round(end, 3),
                 "speaker": str(item.get("speaker") or "Intervenant inconnu").strip(),
