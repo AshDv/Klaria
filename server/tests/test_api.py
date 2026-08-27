@@ -1,8 +1,17 @@
 from app.db import engine
 from app.main import app
-from app.models import ConsentSession, ConsentSessionStatus, ParticipantConsent
+from app.models import (
+    CalendarConnection,
+    CalendarEvent,
+    CalendarProvider,
+    ConsentSession,
+    ConsentSessionStatus,
+    ParticipantConsent,
+    User,
+    utc_now,
+)
 from fastapi.testclient import TestClient
-from sqlmodel import Session, SQLModel
+from sqlmodel import Session, SQLModel, select
 
 
 def setup_function():
@@ -120,6 +129,7 @@ def test_recordings_are_private_and_deletable(monkeypatch):
             files={"audio": ("sample.webm", b"audio-data", "audio/webm")},
         )
         assert created.status_code == 201
+
         assert created.json()["consent_version"]
         recording_id = created.json()["id"]
         assert (
@@ -136,8 +146,7 @@ def test_consent_blocks_start_and_withdrawal_stops(monkeypatch):
     monkeypatch.setattr("app.config.settings.smtp_from_email", "scribe@example.com")
     monkeypatch.setattr(
         "app.consent_routes.send_consent_email",
-        lambda name, email, title, token, retention_days, scheduled_at, owner_name, owner_email,
-        platform: tokens.append(token),
+        lambda _name, _email, _title, token, *_args: tokens.append(token),
     )
     with TestClient(app) as client:
         token = register(client)
@@ -146,7 +155,9 @@ def test_consent_blocks_start_and_withdrawal_stops(monkeypatch):
             headers=auth(token),
             json={
                 "title": "Réunion RGPD",
-                "participants": [{"name": "Yanis", "email": "yanis@example.com"}],
+                "participants": [
+                    {"name": "Yanis", "email": "yanis@example.com"}
+                ],
             },
         )
         meeting_id = created.json()["id"]
@@ -173,3 +184,100 @@ def test_consent_blocks_start_and_withdrawal_stops(monkeypatch):
 def test_google_sso_reports_missing_configuration():
     with TestClient(app) as client:
         assert client.get("/api/auth/sso/google").status_code == 503
+
+
+def test_account_deletion_with_a_consent_session(monkeypatch):
+    monkeypatch.setattr("app.config.settings.smtp_host", "smtp.example.com")
+    monkeypatch.setattr("app.config.settings.smtp_from_email", "scribe@example.com")
+    monkeypatch.setattr("app.consent_routes.send_consent_email", lambda *args: None)
+    with TestClient(app) as client:
+        token = register(client, "delete@example.com")
+        created = client.post(
+            "/api/consent-sessions",
+            headers=auth(token),
+            json={
+                "title": "Réunion à supprimer",
+                "participants": [{"name": "Yanis", "email": "yanis@example.com"}],
+            },
+        )
+        assert created.status_code == 201
+
+        with Session(engine) as db:
+            user = db.exec(select(User).where(User.email == "delete@example.com")).one()
+            connection = CalendarConnection(
+                user_id=user.id,
+                provider=CalendarProvider.GOOGLE,
+                account_email=user.email,
+                access_token="encrypted-token",
+            )
+            db.add(connection)
+            db.commit()
+            db.refresh(connection)
+            db.add(
+                CalendarEvent(
+                    owner_id=user.id,
+                    connection_id=connection.id,
+                    provider_event_id="event-to-delete",
+                    title="Agenda",
+                    starts_at=utc_now(),
+                    meeting_url="https://meet.google.com/abc-defg-hij",
+                )
+            )
+            db.commit()
+
+        deleted = client.request(
+            "DELETE",
+            "/api/privacy/account",
+            headers=auth(token),
+            json={"confirmation": "DELETE"},
+        )
+        assert deleted.status_code == 204
+        assert client.get("/api/auth/me", headers=auth(token)).status_code == 401
+
+
+def test_participant_erasure_deletes_linked_recording(monkeypatch):
+    consent_tokens = []
+    monkeypatch.setattr("app.config.settings.smtp_host", "smtp.example.com")
+    monkeypatch.setattr("app.config.settings.smtp_from_email", "scribe@example.com")
+    monkeypatch.setattr(
+        "app.consent_routes.send_consent_email",
+        lambda _name, _email, _title, token, *_args: consent_tokens.append(token),
+    )
+    monkeypatch.setattr("app.routes.process_recording", lambda _: None)
+    with TestClient(app) as client:
+        owner_token = register(client, "erase-owner@example.com")
+        created = client.post(
+            "/api/consent-sessions",
+            headers=auth(owner_token),
+            json={
+                "title": "Réunion à effacer",
+                "participants": [{"name": "Yanis", "email": "yanis@example.com"}],
+            },
+        )
+        meeting_id = created.json()["id"]
+        assert client.post(f"/api/public/consents/{consent_tokens[0]}/accept").status_code == 200
+        client.post(
+            f"/api/consent-sessions/{meeting_id}/start",
+            headers=auth(owner_token),
+            json={"notice_confirmed": True},
+        )
+        recording = client.post(
+            "/api/recordings",
+            headers=auth(owner_token),
+            data={
+                "title": "Audio lié",
+                "consent": "true",
+                "consent_session_id": meeting_id,
+            },
+            files={"audio": ("sample.webm", b"audio-data", "audio/webm")},
+        )
+        assert recording.status_code == 201
+
+        erased = client.delete(f"/api/public/consents/{consent_tokens[0]}/data")
+        assert erased.status_code == 204
+        assert (
+            client.get(
+                f"/api/recordings/{recording.json()['id']}", headers=auth(owner_token)
+            ).status_code
+            == 404
+        )
