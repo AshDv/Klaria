@@ -125,7 +125,7 @@ export function MeetingsHub({ onNew, onOpenRecording, onOpenRemote }) {
     {section === "upcoming" && <>
       <div className="calendar-summary">
         <div className="calendar-summary-copy">
-          <span className="calendar-stack" aria-hidden="true"><i><PlatformIcon platform="google" decorative/></i><i><PlatformIcon platform="teams" decorative/></i></span>
+          <span className="calendar-stack" aria-hidden="true"><i><PlatformIcon platform="google" decorative/></i><i><PlatformIcon platform="microsoft" decorative/></i></span>
           <div><strong>{connected.length ? `${connected.length} agenda(s) connecté(s)` : "Connectez votre agenda"}</strong><small>{connected.length ? "Titres, horaires et invités sont récupérés automatiquement." : "Scribe détectera vos réunions Meet et Teams."}</small></div>
         </div>
         <div className="calendar-summary-actions">

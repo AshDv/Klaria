@@ -277,6 +277,8 @@ button.meeting-card:hover { background:#f7faf8; }
 .meeting-platform .platform-fallback { font:800 15px "Manrope"; }
 .meeting-platform small { font-size:9px; }
 .platform-logo { display:block; object-fit:contain; }
+.microsoft-brand-logo { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:2px; }
+.microsoft-brand-logo span:nth-child(1) { background:#f25022; }.microsoft-brand-logo span:nth-child(2) { background:#7fba00; }.microsoft-brand-logo span:nth-child(3) { background:#00a4ef; }.microsoft-brand-logo span:nth-child(4) { background:#ffb900; }
 .platform-fallback { display:grid; place-items:center; }
 .platform-pair i { display:grid; place-items:center; background:#fff; }
 .platform-pair .platform-logo { width:22px; height:22px; }
