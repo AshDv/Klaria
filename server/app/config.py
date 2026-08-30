@@ -38,14 +38,14 @@ class Settings(BaseSettings):
     google_client_id: str | None = None
     google_client_secret: str | None = None
     google_calendar_scopes: str = (
-        "openid email profile https://www.googleapis.com/auth/calendar.events.readonly "
+        "openid email profile https://www.googleapis.com/auth/calendar.events "
         "https://www.googleapis.com/auth/meetings.space.readonly"
     )
 
     microsoft_client_id: str | None = None
     microsoft_client_secret: str | None = None
     microsoft_tenant: str = "common"
-    microsoft_calendar_scopes: str = "openid profile email offline_access Calendars.Read"
+    microsoft_calendar_scopes: str = "openid profile email offline_access Calendars.ReadWrite"
 
     token_encryption_key: str | None = None
     automation_key: str | None = None
