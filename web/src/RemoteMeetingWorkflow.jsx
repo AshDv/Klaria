@@ -156,7 +156,7 @@ function BotSetup({ onCreated }) {
       </>}
       <label className="consent replay-consent"><input type="checkbox" checked={keepReplay} onChange={(event) => setKeepReplay(event.target.checked)}/><span><strong>Conserver un replay audio</strong><small>Optionnel et désactivé par défaut. Chaque participant verra cette durée avant d’accepter.</small></span></label>
       {keepReplay && <label className="field compact-field"><span>Suppression automatique du média</span><select value={replayDays} onChange={(event) => setReplayDays(Number(event.target.value))}><option value="1">Après 24 heures</option><option value="7">Après 7 jours</option><option value="14">Après 14 jours</option><option value="30">Après 30 jours</option></select></label>}
-      <p className="privacy-hint">Chaque personne reçoit un lien individuel. Le bot reste bloqué jusqu’au dernier accord. La vidéo et le partage d’écran restent dans le replay natif Meet ou Teams lorsqu’il existe.</p>
+      <p className="privacy-hint">Chaque personne reçoit un lien individuel. Le bot reste bloqué jusqu’au dernier accord. Scribe ne capture ni la vidéo ni le partage d’écran.</p>
       {error && <div className="alert error">{error}</div>}
       <button className="primary-button compact" disabled={busy || (!manual && !selectedEvent)}>{busy ? "Préparation…" : "Demander les accords"}</button>
     </form>

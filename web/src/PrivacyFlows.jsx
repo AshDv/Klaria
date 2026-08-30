@@ -33,7 +33,7 @@ export function PublicConsent({ token }) {
       <li>L’audio sera transmis à {notice.processor} pour transcription et diarisation.</li>
       <li>La transcription sera analysée pour produire le résumé, les décisions et les actions.</li>
       <li>{notice.media_recording_enabled ? `Vous acceptez aussi la conservation du replay audio pendant ${notice.media_retention_days} jour${notice.media_retention_days > 1 ? "s" : ""} maximum.` : "L’audio sera supprimé après le traitement."}</li>
-      <li>Scribe ne copie ni la vidéo ni le partage d’écran. Un éventuel replay natif reste géré par Meet ou Teams.</li>
+      <li>Scribe ne capture, ne récupère et n’affiche ni la vidéo ni le partage d’écran.</li>
       <li>Les résultats seront conservés au maximum {notice.retention_days} jours.</li>
       <li>Vous pouvez retirer votre accord ou demander l’effacement depuis cette page.</li>
     </ul>
