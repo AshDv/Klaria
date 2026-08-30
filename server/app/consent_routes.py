@@ -25,7 +25,7 @@ from app.models import (
     User,
     utc_now,
 )
-from app.remote_processing import erase_provider_meeting, stop_and_erase_remote_meeting
+from app.remote_processing import erase_provider_meeting, stop_for_participant
 
 router = APIRouter(prefix="/api")
 
@@ -289,7 +289,7 @@ def withdraw_consent(
         select(RemoteMeeting).where(RemoteMeeting.consent_session_id == consent.session_id)
     ).first()
     if remote:
-        background_tasks.add_task(stop_and_erase_remote_meeting, remote.id)
+        background_tasks.add_task(stop_for_participant, remote.id, consent.email)
     return {"status": "withdrawn", "withdrawn_at": consent.withdrawn_at}
 
 
