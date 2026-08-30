@@ -347,6 +347,24 @@ html[data-teams-theme="dark"] { --ink:#f4f6f5; --muted:#b2bbb7; --line:#3d4844; 
 html[data-teams-theme="dark"] body { background:#1f2523; }
 html[data-teams-theme="dark"] .teams-shell :is(.content-card,.dashboard-panel,.meeting-cards,.meeting-card,.meeting-search,.meeting-filter,.calendar-picker-list,.calendar-picker-list>button) { color:var(--ink); border-color:var(--line); background:#242b29; }
 
+.rich-report { display:grid; gap:12px; margin-top:12px; }
+.rich-report p,.rich-report ul { margin:0; color:#34423d; font-size:14px; line-height:1.75; }
+.rich-report ul { padding-left:20px; }
+.action-table-row.editable select,.action-table-row.editable input,.post-actions input,.action-filters input,.action-filters select { min-width:0; min-height:40px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; color:var(--ink); background:#fff; font:inherit; }
+.action-save { display:flex; gap:7px; }
+.action-save select { flex:1; }
+.action-save button,.action-results button { border:0; color:var(--green); background:transparent; font-weight:750; cursor:pointer; }
+.post-meeting-tools { grid-column:1/-1; }
+.post-meeting-tools h3 { margin:7px 0 14px; }
+.participant-picks { display:flex; flex-wrap:wrap; gap:8px; }
+.participant-picks label { display:flex; align-items:center; gap:8px; padding:9px 11px; border:1px solid var(--line); border-radius:11px; background:#f8faf9; cursor:pointer; }
+.participant-picks label span { display:flex; flex-direction:column; font-size:11px; font-weight:750; }
+.participant-picks label small { color:var(--muted); font-weight:500; }
+.post-actions { display:grid; grid-template-columns:auto minmax(180px,1fr) 190px auto; gap:8px; margin:14px 0 9px; }
+.form-feedback { margin:8px 0; color:var(--green-dark); font-weight:700; }
+.action-filters { display:grid; grid-template-columns:minmax(220px,1.3fr) repeat(3,minmax(150px,.7fr)); gap:9px; margin:18px 0 10px; }
+.action-results { display:flex; justify-content:space-between; margin:0 3px 10px; color:var(--muted); font-size:11px; }
+
 @media (max-width:760px) {
   .meetings-header,.calendar-summary { align-items:flex-start; flex-direction:column; }
   .calendar-summary-actions { width:100%; justify-content:flex-end; }
@@ -358,6 +376,8 @@ html[data-teams-theme="dark"] .teams-shell :is(.content-card,.dashboard-panel,.m
   .month-calendar-head { align-items:flex-start; flex-direction:column; }
   .calendar-event-panel { grid-template-columns:52px minmax(0,1fr) 36px; }
   .calendar-event-panel .automation-switch { grid-column:2; }
+  .post-actions,.action-filters { grid-template-columns:1fr; }
+  .action-table-row.editable { grid-template-columns:1fr; gap:8px; }
 }
 @media (max-width:480px) {
   .meeting-hub-tabs { width:100%; }
