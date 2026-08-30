@@ -65,6 +65,56 @@ def _request(method: str, url: str, **kwargs) -> dict:
         raise CalendarError("Le fournisseur d’agenda n’a pas répondu correctement") from exc
 
 
+def create_follow_up(
+    connection: CalendarConnection,
+    db: Session,
+    title: str,
+    starts_at: datetime,
+    ends_at: datetime,
+    attendees: list[dict],
+) -> dict:
+    """Crée une réunion en ligne et laisse le fournisseur envoyer les invitations."""
+    token = access_token(connection, db)
+    if connection.provider == CalendarProvider.GOOGLE:
+        return _request(
+            "POST",
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            headers={"Authorization": f"Bearer {token}"},
+            params={"conferenceDataVersion": 1, "sendUpdates": "all"},
+            json={
+                "summary": title,
+                "start": {"dateTime": aware(starts_at).isoformat(), "timeZone": "Europe/Paris"},
+                "end": {"dateTime": aware(ends_at).isoformat(), "timeZone": "Europe/Paris"},
+                "attendees": [{"email": item["email"]} for item in attendees],
+                "conferenceData": {
+                    "createRequest": {
+                        "requestId": f"scribe-{int(utc_now().timestamp())}",
+                        "conferenceSolutionKey": {"type": "hangoutsMeet"},
+                    }
+                },
+            },
+        )
+    return _request(
+        "POST",
+        "https://graph.microsoft.com/v1.0/me/events",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "subject": title,
+            "start": {"dateTime": aware(starts_at).isoformat(), "timeZone": "UTC"},
+            "end": {"dateTime": aware(ends_at).isoformat(), "timeZone": "UTC"},
+            "attendees": [
+                {
+                    "emailAddress": {"address": item["email"], "name": item.get("name")},
+                    "type": "required",
+                }
+                for item in attendees
+            ],
+            "isOnlineMeeting": True,
+            "onlineMeetingProvider": "teamsForBusiness",
+        },
+    )
+
+
 def _refresh(connection: CalendarConnection, db: Session) -> str:
     refresh_token = decrypt_token(connection.refresh_token)
     if not refresh_token:
