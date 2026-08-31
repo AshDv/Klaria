@@ -127,6 +127,18 @@ export const api = {
   reanalyzeRemoteMeeting: (id) => request(`/api/remote-meetings/${id}/reanalyze`, {
     method: "POST",
   }),
+  updateMeetingAction: (id, index, payload) => request(`/api/remote-meetings/${id}/actions/${index}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  }),
+  shareMeetingReport: (id, recipientEmails) => request(`/api/remote-meetings/${id}/share`, {
+    method: "POST",
+    body: JSON.stringify({ recipient_emails:recipientEmails }),
+  }),
+  createMeetingFollowUp: (id, payload) => request(`/api/remote-meetings/${id}/follow-up`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
   deleteRemoteMeeting: (id) => request(`/api/remote-meetings/${id}`, {
     method: "DELETE",
   }),

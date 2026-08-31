@@ -56,8 +56,8 @@ Date : {_date(scheduled_at)}
 Plateforme : {platform_label}
 
 Scribe transcrit les échanges, distingue les voix et utilise Mistral AI pour produire
-un compte rendu, les décisions et les actions. {media_notice} Scribe ne capture pas la
-vidéo ni le partage d’écran ; un replay natif reste géré séparément par Meet ou Teams.
+un compte rendu, les décisions et les actions. {media_notice} Scribe ne capture ni la
+vidéo ni le partage d’écran.
 Le chat est uniquement lu pour détecter STOP SCRIBE et n’est pas conservé.
 
 Consultez les informations puis acceptez ou refusez ici : {link}
@@ -116,8 +116,8 @@ Contact données personnelles : {settings.privacy_contact_email}
           <b>Ce que fait Scribe</b>
           <p style="margin:8px 0">Il transcrit les échanges, distingue les intervenants et
             utilise Mistral AI pour produire le compte rendu, les décisions et les actions.</p>
-          <p style="margin:8px 0">{safe['media']} Scribe ne capture pas la vidéo ni le
-            partage d’écran ; un replay natif reste géré séparément par Meet ou Teams.</p>
+          <p style="margin:8px 0">{safe['media']} Scribe ne capture ni la vidéo ni le
+            partage d’écran.</p>
           <p style="margin:8px 0">Le chat sert uniquement à détecter <b>STOP SCRIBE</b>
             et n’est pas conservé.</p>
         </td></tr>
@@ -161,3 +161,48 @@ Contact données personnelles : {settings.privacy_contact_email}
             smtp.send_message(message)
     except (OSError, smtplib.SMTPException) as exc:
         raise EmailError("L’invitation n’a pas pu être envoyée") from exc
+
+
+def send_report_email(name: str, email: str, title: str, summary: str, link: str) -> None:
+    """Envoie un compte rendu sans traceur à un participant autorisé."""
+    if not settings.smtp_configured:
+        raise EmailError("Le serveur d’e-mail SMTP n’est pas configuré")
+    safe_name, safe_title = escape(name), escape(title)
+    safe_summary, safe_link = escape(summary), escape(link, quote=True)
+    message = EmailMessage()
+    message["Subject"] = f"Compte rendu — {title}"
+    message["From"] = settings.smtp_from_email
+    message["To"] = email
+    message["Reply-To"] = settings.privacy_contact_email
+    message.set_content(
+        f"Bonjour {name},\n\nLe compte rendu de « {title} » est prêt.\n\n"
+        f"{summary}\n\nConsulter : {link}\n"
+    )
+    message.add_alternative(
+        dedent(
+            f"""<!doctype html><html lang="fr"><body style="margin:0;background:#f4f6f5;
+            color:#17211d;font-family:Arial,sans-serif"><table role="presentation" width="100%">
+            <tr><td align="center" style="padding:32px 12px"><table role="presentation"
+            width="100%" style="max-width:620px;background:#fff;border:1px solid #dfe5e2;
+            border-radius:20px"><tr><td style="padding:24px 30px;background:#123f34;color:#fff;
+            border-radius:20px 20px 0 0"><b style="font-size:20px">Scribe</b></td></tr>
+            <tr><td style="padding:32px 30px"><p>Bonjour {safe_name},</p><h1 style="font-size:25px">
+            {safe_title}</h1><p style="line-height:1.65;color:#52605b">{safe_summary}</p>
+            <a href="{safe_link}" style="display:inline-block;margin-top:12px;padding:14px 22px;
+            background:#176852;color:#fff;text-decoration:none;border-radius:11px;font-weight:700">
+            Ouvrir le compte rendu</a></td></tr><tr><td style="padding:18px 30px;background:#f7f9f8;
+            color:#68746f;font-size:12px;border-radius:0 0 20px 20px">Aucun traceur publicitaire.
+            Les accès restent contrôlés par Scribe.</td></tr></table></td></tr></table>
+            </body></html>"""
+        ),
+        subtype="html",
+    )
+    try:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:
+            if settings.smtp_use_tls:
+                smtp.starttls()
+            if settings.smtp_username:
+                smtp.login(settings.smtp_username, settings.smtp_password or "")
+            smtp.send_message(message)
+    except (OSError, smtplib.SMTPException) as exc:
+        raise EmailError("Le compte rendu n’a pas pu être envoyé") from exc
