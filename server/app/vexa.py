@@ -49,7 +49,7 @@ def parse_url(url: str) -> tuple[str, str, str | None]:
                 "Lien Teams non reconnu. Utilisez le lien contenant /meet/<ID>?p=<CODE>."
             )
         return "teams", m.group(1), (qs.get("p") or qs.get("passcode") or [None])[0]
-    raise VexaError("Plateforme non reconnue. Scribe accepte Google Meet et Microsoft Teams.")
+    raise VexaError("Plateforme non reconnue. Nolya accepte Google Meet et Microsoft Teams.")
 
 
 def _headers() -> dict:
@@ -83,7 +83,7 @@ def send_bot(
         "language": language,
         "bot_name": settings.vexa_bot_name,
         "recording_enabled": recording_enabled,
-        "transcribe_enabled": True,
+        "trannolya_enabled": True,
         "transcription_tier": "realtime",
         "voice_agent_enabled": True,
     }

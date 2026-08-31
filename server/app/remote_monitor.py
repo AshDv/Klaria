@@ -1,4 +1,4 @@
-"""Surveille les événements Vexa même si l'utilisateur ferme la page Scribe."""
+"""Surveille les événements Vexa même si l'utilisateur ferme la page Nolya."""
 
 import asyncio
 

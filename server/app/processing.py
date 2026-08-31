@@ -18,7 +18,7 @@ from app.models import (
     StructuredReport,
     utc_now,
 )
-from app.transcription import TranscriptionError, transcribe_audio
+from app.transcription import TranscriptionError, trannolya_audio
 
 
 def process_recording(recording_id: str) -> None:
@@ -49,7 +49,7 @@ def process_recording(recording_id: str) -> None:
                 else []
             )
             names = [item.name for item in participants if item.name]
-            transcript = transcribe_audio(path, recording.content_type, names)
+            transcript = trannolya_audio(path, recording.content_type, names)
             result = generate_summary(transcript["text"], transcript["segments"], names)
             recording.transcript = transcript["text"]
             recording.segments_json = json.dumps(transcript["segments"], ensure_ascii=False)

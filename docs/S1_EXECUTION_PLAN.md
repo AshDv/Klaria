@@ -2,13 +2,13 @@
 
 Date de préparation : 22 juillet 2026
 Échéance Jira : 26 juillet 2026
-Dépôt final : `https://github.com/AshDv/ScribeProject`
+Dépôt final : `https://github.com/AshDv/NolyaProject`
 
 ## 1. Situation de départ
 
 Le dépôt final contient uniquement un commit initial créé par Ashwin. Le dossier
-`C:\Users\pc\Downloads\scribe-saas` pointe encore vers
-`YanisZedira/scribe_saas` et contient un historique ancien ainsi que des changements
+`C:\Users\pc\Downloads\nolya-saas` pointe encore vers
+`YanisZedira/nolya_saas` et contient un historique ancien ainsi que des changements
 non commités.
 
 Il ne faut donc ni changer son remote puis pousser, ni committer tout le dossier en une
@@ -23,8 +23,8 @@ un résultat puis modifier l’auteur Git ne constitue pas une contribution rée
 
 ```powershell
 Set-Location C:\Users\pc\Downloads
-git clone https://github.com/AshDv/ScribeProject.git ScribeProject
-Set-Location ScribeProject
+git clone https://github.com/AshDv/NolyaProject.git NolyaProject
+Set-Location NolyaProject
 git switch -c develop
 git push -u origin develop
 ```
@@ -64,7 +64,7 @@ jamais partager un même compte GitHub.
 | 7 | S1-07 Create the consent and privacy interface | `feature/s1-07-consent-interface` | Mehdi | Yanis | 5 | S1-04, S1-06 |
 | 8 | S1-08 Create the secure recording API | `feature/s1-08-recording-api` | Yanis | Aymen | 3 | S1-03, S1-06 |
 | 9 | S1-09 Create the consent-aware browser dictaphone | `feature/s1-09-browser-dictaphone` | Yanis | Mehdi | 5 | S1-07, S1-08 |
-| 10 | S1-10 Transcribe and diarize audio with Voxtral | `feature/s1-10-voxtral-diarization` | Ashwin | Yanis | 5 | S1-08 |
+| 10 | S1-10 Trannolya and diarize audio with Voxtral | `feature/s1-10-voxtral-diarization` | Ashwin | Yanis | 5 | S1-08 |
 | 11 | S1-11 Generate the structured Mistral meeting report | `feature/s1-11-mistral-report` | Ashwin | Mehdi | 5 | S1-10 |
 | 12 | S1-12 Create the meeting results interface | `feature/s1-12-results-interface` | Mehdi | Ashwin | 5 | S1-04, S1-11 |
 | 13 | S1-13 Validate and release the complete S1 journey | `test/s1-13-release-validation` | Yanis | Toute l’équipe | 3 | S1-01 à S1-12 |
@@ -118,7 +118,7 @@ ou `push --force-with-lease` n’est utilisé dans ce projet.
 
 ### S1-04 — Mehdi
 
-1. `feat(ui): add the responsive Scribe shell`
+1. `feat(ui): add the responsive Nolya shell`
 2. `feat(auth-ui): add account forms`
 3. `feat(auth-ui): add SSO callback and private navigation`
 

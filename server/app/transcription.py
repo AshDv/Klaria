@@ -21,7 +21,7 @@ def context_bias(values: list[str]) -> str:
     )
 
 
-def transcribe_audio(
+def trannolya_audio(
     path: Path,
     content_type: str,
     vocabulary: list[str] | None = None,

@@ -49,7 +49,7 @@ async def lifespan(_: FastAPI):
     await stop_remote_monitors()
 
 
-app = FastAPI(title="Scribe API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Nolya API", version="1.0.0", lifespan=lifespan)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

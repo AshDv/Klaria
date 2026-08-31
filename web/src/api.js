@@ -1,10 +1,10 @@
-let accessToken = localStorage.getItem("scribe_access_token");
+let accessToken = localStorage.getItem("nolya_access_token");
 const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 export function setAccessToken(value) {
   accessToken = value;
-  if (value) localStorage.setItem("scribe_access_token", value);
-  else localStorage.removeItem("scribe_access_token");
+  if (value) localStorage.setItem("nolya_access_token", value);
+  else localStorage.removeItem("nolya_access_token");
 }
 
 export const isAuthenticated = () => Boolean(accessToken);
@@ -12,7 +12,7 @@ export const isAuthenticated = () => Boolean(accessToken);
 export function remoteMeetingSocket(id) {
   const base = API_BASE || window.location.origin;
   const wsBase = base.replace(/^http/, "ws");
-  return new WebSocket(`${wsBase}/api/remote-meetings/${id}/live`, ["scribe", accessToken]);
+  return new WebSocket(`${wsBase}/api/remote-meetings/${id}/live`, ["nolya", accessToken]);
 }
 
 async function request(path, options = {}) {
@@ -100,7 +100,7 @@ export const api = {
     form.set("title", title);
     form.set("consent", String(consent));
     form.set("consent_session_id", consentSessionId);
-    form.set("audio", audio, `scribe-${Date.now()}.webm`);
+    form.set("audio", audio, `nolya-${Date.now()}.webm`);
     return request("/api/recordings", { method: "POST", body: form });
   },
   deleteRecording: (id) => request(`/api/recordings/${id}`, { method: "DELETE" }),

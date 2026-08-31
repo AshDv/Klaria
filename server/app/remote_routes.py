@@ -92,7 +92,7 @@ async def remote_meeting_live(websocket: WebSocket, meeting_id: str):
     if not allowed:
         await websocket.close(code=4401)
         return
-    await websocket.accept(subprotocol="scribe")
+    await websocket.accept(subprotocol="nolya")
     try:
         async with websockets.connect(
             vexa.websocket_url(),

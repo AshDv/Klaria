@@ -2,11 +2,11 @@ $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
 
 $packageDirectory = Join-Path $PSScriptRoot "build"
-$archivePath = Join-Path $PSScriptRoot "Scribe-Teams.zip"
+$archivePath = Join-Path $PSScriptRoot "Nolya-Teams.zip"
 New-Item -ItemType Directory -Path $packageDirectory -Force | Out-Null
 Copy-Item (Join-Path $PSScriptRoot "manifest.json") $packageDirectory -Force
 
-function New-ScribeIcon {
+function New-NolyaIcon {
     param(
         [int]$Size,
         [string]$Path,
@@ -33,8 +33,8 @@ function New-ScribeIcon {
     $format.Dispose(); $textBrush.Dispose(); $font.Dispose(); $graphics.Dispose(); $bitmap.Dispose()
 }
 
-New-ScribeIcon -Size 192 -Path (Join-Path $packageDirectory "color.png") -Color $true
-New-ScribeIcon -Size 32 -Path (Join-Path $packageDirectory "outline.png") -Color $false
+New-NolyaIcon -Size 192 -Path (Join-Path $packageDirectory "color.png") -Color $true
+New-NolyaIcon -Size 32 -Path (Join-Path $packageDirectory "outline.png") -Color $false
 if (Test-Path $archivePath) { Remove-Item -LiteralPath $archivePath }
 Compress-Archive -Path (Join-Path $packageDirectory "manifest.json"), (Join-Path $packageDirectory "color.png"), (Join-Path $packageDirectory "outline.png") -DestinationPath $archivePath
 Write-Host "Paquet créé : $archivePath"

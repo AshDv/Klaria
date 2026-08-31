@@ -46,24 +46,24 @@ def send_consent_email(
     media_notice = (
         f"Un replay audio sera conservé pendant {media_retention_days} jour(s) maximum."
         if media_retention_days
-        else "L’audio du bot n’est pas conservé par Scribe."
+        else "L’audio du bot n’est pas conservé par Nolya."
     )
     organizer = organizer_name or organizer_email or "L’organisateur"
     plain = f"""Bonjour {name},
 
-{organizer} souhaite utiliser Scribe pendant « {title} ».
+{organizer} souhaite utiliser Nolya pendant « {title} ».
 Date : {_date(scheduled_at)}
 Plateforme : {platform_label}
 
-Scribe transcrit les échanges, distingue les voix et utilise Mistral AI pour produire
-un compte rendu, les décisions et les actions. {media_notice} Scribe ne capture ni la
+Nolya transcrit les échanges, distingue les voix et utilise Mistral AI pour produire
+un compte rendu, les décisions et les actions. {media_notice} Nolya ne capture ni la
 vidéo ni le partage d’écran.
-Le chat est uniquement lu pour détecter STOP SCRIBE et n’est pas conservé.
+Le chat est uniquement lu pour détecter STOP NOLYA et n’est pas conservé.
 
 Consultez les informations puis acceptez ou refusez ici : {link}
 
 La capture ne commence pas sans l’accord de chaque participant. Vous pourrez retirer
-votre accord depuis le même lien ou écrire STOP SCRIBE pendant la réunion.
+votre accord depuis le même lien ou écrire STOP NOLYA pendant la réunion.
 Contact données personnelles : {settings.privacy_contact_email}
 """
 
@@ -88,7 +88,7 @@ Contact données personnelles : {settings.privacy_contact_email}
           style="max-width:620px;background:#fff;border:1px solid #dfe5e2;
                  border-radius:20px;overflow:hidden">
         <tr><td style="padding:24px 30px;background:#123f34;color:#fff">
-          <b style="font-size:20px">Scribe</b>
+          <b style="font-size:20px">Nolya</b>
           <span style="float:right;font-size:12px;color:#bfe0d4">Consentement préalable</span>
         </td></tr>
         <tr><td style="padding:34px 30px 12px">
@@ -98,7 +98,7 @@ Contact données personnelles : {settings.privacy_contact_email}
             Bonjour {safe['name']}, votre choix est requis
           </h1>
           <p style="margin:0;color:#52605b;line-height:1.6">
-            {safe['organizer']} souhaite utiliser Scribe pendant la réunion
+            {safe['organizer']} souhaite utiliser Nolya pendant la réunion
             <b>« {safe['title']} »</b>.
           </p>
         </td></tr>
@@ -113,12 +113,12 @@ Contact données personnelles : {settings.privacy_contact_email}
           </tr></table>
         </td></tr>
         <tr><td style="padding:16px 30px;color:#3d4945;line-height:1.65">
-          <b>Ce que fait Scribe</b>
+          <b>Ce que fait Nolya</b>
           <p style="margin:8px 0">Il transcrit les échanges, distingue les intervenants et
             utilise Mistral AI pour produire le compte rendu, les décisions et les actions.</p>
-          <p style="margin:8px 0">{safe['media']} Scribe ne capture ni la vidéo ni le
+          <p style="margin:8px 0">{safe['media']} Nolya ne capture ni la vidéo ni le
             partage d’écran.</p>
-          <p style="margin:8px 0">Le chat sert uniquement à détecter <b>STOP SCRIBE</b>
+          <p style="margin:8px 0">Le chat sert uniquement à détecter <b>STOP NOLYA</b>
             et n’est pas conservé.</p>
         </td></tr>
         <tr><td align="center" style="padding:12px 30px 26px">
@@ -133,7 +133,7 @@ Contact données personnelles : {settings.privacy_contact_email}
         </td></tr>
         <tr><td style="padding:20px 30px;background:#f7f9f8;border-top:1px solid #e5eae7;
                       color:#68746f;font-size:12px;line-height:1.55">
-          Vous pouvez retirer votre accord depuis le même lien ou écrire STOP SCRIBE pendant
+          Vous pouvez retirer votre accord depuis le même lien ou écrire STOP NOLYA pendant
           la réunion.<br>
           Contact données personnelles :
           <a href="mailto:{safe['privacy']}" style="color:#176852">{safe['privacy']}</a><br><br>
@@ -185,14 +185,14 @@ def send_report_email(name: str, email: str, title: str, summary: str, link: str
             <tr><td align="center" style="padding:32px 12px"><table role="presentation"
             width="100%" style="max-width:620px;background:#fff;border:1px solid #dfe5e2;
             border-radius:20px"><tr><td style="padding:24px 30px;background:#123f34;color:#fff;
-            border-radius:20px 20px 0 0"><b style="font-size:20px">Scribe</b></td></tr>
+            border-radius:20px 20px 0 0"><b style="font-size:20px">Nolya</b></td></tr>
             <tr><td style="padding:32px 30px"><p>Bonjour {safe_name},</p><h1 style="font-size:25px">
             {safe_title}</h1><p style="line-height:1.65;color:#52605b">{safe_summary}</p>
             <a href="{safe_link}" style="display:inline-block;margin-top:12px;padding:14px 22px;
             background:#176852;color:#fff;text-decoration:none;border-radius:11px;font-weight:700">
             Ouvrir le compte rendu</a></td></tr><tr><td style="padding:18px 30px;background:#f7f9f8;
             color:#68746f;font-size:12px;border-radius:0 0 20px 20px">Aucun traceur publicitaire.
-            Les accès restent contrôlés par Scribe.</td></tr></table></td></tr></table>
+            Les accès restent contrôlés par Nolya.</td></tr></table></td></tr></table>
             </body></html>"""
         ),
         subtype="html",

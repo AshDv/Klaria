@@ -1,4 +1,4 @@
-"""Configuration centralisée de Scribe."""
+"""Configuration centralisée de Nolya."""
 
 from functools import lru_cache
 from pathlib import Path
@@ -9,10 +9,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    app_name: str = "Scribe"
+    app_name: str = "Nolya"
     environment: str = "development"
     secret_key: str = "change-this-secret-before-production"
-    database_url: str = "sqlite:///./scribe.db"
+    database_url: str = "sqlite:///./nolya.db"
     cors_origins: str = "http://localhost:5174"
     frontend_url: str = "http://localhost:5174"
     api_public_url: str = "http://localhost:8000"
@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     vexa_api_url: str = "https://api.cloud.vexa.ai"
     vexa_api_key: str | None = None
-    vexa_bot_name: str = "Scribe — prise de notes"
+    vexa_bot_name: str = "Nolya — prise de notes"
 
     google_client_id: str | None = None
     google_client_secret: str | None = None

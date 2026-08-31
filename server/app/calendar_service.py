@@ -88,7 +88,7 @@ def create_follow_up(
                 "attendees": [{"email": item["email"]} for item in attendees],
                 "conferenceData": {
                     "createRequest": {
-                        "requestId": f"scribe-{int(utc_now().timestamp())}",
+                        "requestId": f"nolya-{int(utc_now().timestamp())}",
                         "conferenceSolutionKey": {"type": "hangoutsMeet"},
                     }
                 },
@@ -337,7 +337,7 @@ def sync_connection(connection: CalendarConnection, db: Session) -> int:
                 meeting_url=item["meeting_url"],
                 organizer_email=item["organizer_email"],
                 attendees_json=json.dumps(item["attendees"], ensure_ascii=False),
-                auto_join=connection.auto_join_tagged and "[scribe]" in item["title"].lower(),
+                auto_join=connection.auto_join_tagged and "[nolya]" in item["title"].lower(),
             )
         else:
             previous_attendees = event.attendees_json
@@ -356,7 +356,7 @@ def sync_connection(connection: CalendarConnection, db: Session) -> int:
                     event.consent_session_id = None
                 event.auto_join = False
                 event.invitation_errors_json = json.dumps(
-                    ["Invités modifiés : vérifiez et réactivez Scribe"]
+                    ["Invités modifiés : vérifiez et réactivez Nolya"]
                 )
         event.status = (
             CalendarEventStatus.CANCELLED if item["cancelled"] else CalendarEventStatus.SCHEDULED

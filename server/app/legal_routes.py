@@ -79,9 +79,9 @@ def legal_notices():
             "Réunion en ligne : audio transcrit en direct par Vexa. Le replay audio reste "
             "désactivé par défaut et n’est conservé que si l’organisateur le demande, si "
             "chaque participant accepte et pendant la durée annoncée.",
-            "Vidéo et partage d’écran : Scribe ne les capture pas, ne les récupère pas et "
+            "Vidéo et partage d’écran : Nolya ne les capture pas, ne les récupère pas et "
             "ne les affiche pas dans le compte rendu.",
-            "Chat de réunion : consulté sans stockage pour détecter STOP SCRIBE et "
+            "Chat de réunion : consulté sans stockage pour détecter STOP NOLYA et "
             "publier le récapitulatif.",
             "Participants : noms et e-mails renseignés par l’organisateur pour recueillir "
             "les accords avant la capture.",

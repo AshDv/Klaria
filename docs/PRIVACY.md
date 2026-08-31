@@ -1,10 +1,10 @@
-# Cadre de protection des données de Scribe
+# Cadre de protection des données de Nolya
 
 Version : 2026-08-10
 
 ## Finalités et données minimales
 
-Scribe traite les données uniquement pour authentifier l’utilisateur, recueillir le
+Nolya traite les données uniquement pour authentifier l’utilisateur, recueillir le
 consentement individuel, transcrire une réunion et produire son compte rendu.
 
 - Compte : nom, e-mail, mot de passe hashé, versions des accords.
@@ -20,9 +20,9 @@ consentement sont stockés sous forme de hash et non en clair.
 
 1. Chaque participant reçoit une information avant la réunion.
 2. Le dictaphone et le bot restent bloqués jusqu’à l’accord actif de tous les participants.
-3. L’organisateur annonce à nouveau Scribe aux personnes présentes.
+3. L’organisateur annonce à nouveau Nolya aux personnes présentes.
 4. Tout retrait arrête la capture et déclenche l’effacement des données temporaires du bot.
-5. La commande « STOP SCRIBE » dans le chat produit le même arrêt immédiat.
+5. La commande « STOP NOLYA » dans le chat produit le même arrêt immédiat.
 6. L’audio est supprimé après la tentative de traitement, réussie ou non.
 7. Les transcriptions et comptes rendus expirent après 30 jours.
 8. L’utilisateur peut exporter ses données ou supprimer son compte.
@@ -34,7 +34,7 @@ Mistral AI reçoit l’audio pour Voxtral et la transcription pour Mistral Mediu
 Vexa reçoit le flux des réunions en ligne pour produire la transcription en direct.
 L’enregistrement audio Vexa est désactivé et la réunion temporaire est purgée après analyse.
 Le bot consulte le chat uniquement pour détecter une demande d'arrêt et publier le
-récapitulatif. Scribe ne stocke pas les messages du chat. Les participants sont renseignés
+récapitulatif. Nolya ne stocke pas les messages du chat. Les participants sont renseignés
 par l’organisateur uniquement pour recueillir leur consentement avant la capture.
 Le DPA Mistral et le DPA client doivent être signés et archivés avant la production.
 L’identité du responsable de traitement, ses coordonnées, le contact données

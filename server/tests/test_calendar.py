@@ -14,7 +14,7 @@ def test_google_event_extracts_meet_and_human_attendees():
     item = _google_item(
         {
             "id": "google-1",
-            "summary": "[SCRIBE] Revue",
+            "summary": "[NOLYA] Revue",
             "hangoutLink": "https://meet.google.com/abc-defg-hij",
             "start": {"dateTime": "2026-08-14T09:00:00Z"},
             "end": {"dateTime": "2026-08-14T10:00:00Z"},
