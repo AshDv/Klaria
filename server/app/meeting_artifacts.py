@@ -1,4 +1,4 @@
-"""Métadonnées officielles Google Meet, sans recopier les fichiers vidéo."""
+"""Présence officielle Google Meet, sans accéder aux enregistrements vidéo."""
 
 import re
 import unicodedata
@@ -33,10 +33,10 @@ def _get(url: str, token: str, **params) -> dict:
 
 
 def google_meet_context(meeting: RemoteMeeting, db: Session) -> dict:
-    """Retourne présence et replay natif lorsque Google les met à disposition."""
+    """Retourne uniquement la présence utile à l'attribution des voix."""
     from app.calendar_service import access_token
 
-    empty = {"provider": meeting.platform, "participants": [], "recordings": []}
+    empty = {"provider": meeting.platform, "participants": []}
     if meeting.platform != "google_meet":
         return empty
     event = db.exec(
@@ -64,12 +64,6 @@ def google_meet_context(meeting: RemoteMeeting, db: Session) -> dict:
         token,
         pageSize=250,
     ).get("participants", [])
-    recordings = _get(
-        f"https://meet.googleapis.com/v2/{name}/recordings",
-        token,
-        pageSize=100,
-    ).get("recordings", [])
-
     participants = []
     for person in people:
         identity = (
@@ -86,23 +80,11 @@ def google_meet_context(meeting: RemoteMeeting, db: Session) -> dict:
                     "left_at": person.get("latestEndTime"),
                 }
             )
-    replay = []
-    for item in recordings:
-        destination = item.get("driveDestination") or {}
-        replay.append(
-            {
-                "state": item.get("state"),
-                "start_at": item.get("startTime"),
-                "end_at": item.get("endTime"),
-                "url": destination.get("exportUri"),
-            }
-        )
     return {
         "provider": "google_meet",
         "conference_started_at": record.get("startTime"),
         "conference_ended_at": record.get("endTime"),
         "participants": participants,
-        "recordings": replay,
     }
 
 
