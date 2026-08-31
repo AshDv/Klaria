@@ -20,13 +20,13 @@ def _engine(url: str):
 
 
 def _available_engine():
-    primary = _engine(settings.database_url)
     if settings.database_url.startswith("sqlite"):
-        return primary
+        return _engine(settings.database_url)
     try:
+        primary = _engine(settings.database_url)
         with primary.connect():
             return primary
-    except SQLAlchemyError:
+    except (ImportError, ModuleNotFoundError, SQLAlchemyError):
         if not settings.allow_database_fallback:
             raise
         return _engine(settings.database_fallback_url)
