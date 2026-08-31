@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { api } from "./api";
+import { PlatformIcon } from "./PlatformIcon";
 
 const dateLabel = (value) => new Date(value).toLocaleDateString("fr-FR", {
   day: "numeric",
@@ -54,12 +55,23 @@ export function Dashboard({ user, onNewBot, onOpen }) {
 
 export function ActionsView() {
   const [data, setData] = useState(null);
+  const [filters, setFilters] = useState({ query:"", meeting:"all", owner:"all", priority:"all" });
   useEffect(() => { api.workspaceOverview().then(setData); }, []);
-  return <section className="page"><header className="page-header"><div><span className="eyebrow">Suivi</span><h1>Plan d’action</h1><p>Les engagements explicites, regroupés sans interprétation.</p></div></header><div className="dashboard-panel action-board">{!data ? <Skeleton rows={5}/> : data.actions.length ? data.actions.map((action, index) => <div className="action-line large" key={`${action.meeting_id}-${index}`}><span className={`priority-dot ${action.priority || "medium"}`}/><div><strong>{action.task}</strong><small>{action.meeting_title} · {action.owner || "Responsable à confirmer"}{action.due_date ? ` · Échéance ${action.due_date}` : ""}</small></div><span className="action-priority">{action.priority || "normal"}</span></div>) : <Empty title="Aucune action détectée" text="Scribe n’invente jamais une tâche qui n’a pas été formulée."/>}</div></section>;
+  const actions = data?.actions || [];
+  const meetings = [...new Map(actions.map((item) => [item.meeting_id, item.meeting_title])).entries()];
+  const owners = [...new Set(actions.map((item) => item.owner).filter(Boolean))].sort();
+  const visible = actions.filter((item) => {
+    const text = `${item.task} ${item.meeting_title} ${item.owner || ""}`.toLocaleLowerCase("fr");
+    return (!filters.query || text.includes(filters.query.toLocaleLowerCase("fr")))
+      && (filters.meeting === "all" || item.meeting_id === filters.meeting)
+      && (filters.owner === "all" || item.owner === filters.owner)
+      && (filters.priority === "all" || (item.priority || "medium") === filters.priority);
+  });
+  return <section className="page"><header className="page-header"><div><span className="eyebrow">Suivi</span><h1>Plan d’action</h1><p>Retrouvez chaque engagement par sujet, réunion, responsable ou priorité.</p></div></header><div className="action-filters"><input aria-label="Rechercher un sujet ou une action" placeholder="Sujet, action ou personne" value={filters.query} onChange={(event) => setFilters({ ...filters, query:event.target.value })}/><select aria-label="Filtrer par réunion" value={filters.meeting} onChange={(event) => setFilters({ ...filters, meeting:event.target.value })}><option value="all">Toutes les réunions</option>{meetings.map(([id, title]) => <option key={id} value={id}>{title}</option>)}</select><select aria-label="Filtrer par responsable" value={filters.owner} onChange={(event) => setFilters({ ...filters, owner:event.target.value })}><option value="all">Tous les responsables</option>{owners.map((owner) => <option key={owner}>{owner}</option>)}</select><select aria-label="Filtrer par priorité" value={filters.priority} onChange={(event) => setFilters({ ...filters, priority:event.target.value })}><option value="all">Toutes les priorités</option><option value="high">Haute</option><option value="medium">Normale</option><option value="low">Basse</option></select></div><div className="action-results"><span>{visible.length} action{visible.length > 1 ? "s" : ""}</span>{filters.query || filters.meeting !== "all" || filters.owner !== "all" || filters.priority !== "all" ? <button onClick={() => setFilters({ query:"", meeting:"all", owner:"all", priority:"all" })}>Réinitialiser</button> : null}</div><div className="dashboard-panel action-board">{!data ? <Skeleton rows={5}/> : visible.length ? visible.map((action, index) => <div className="action-line large" key={`${action.meeting_id}-${index}`}><span className={`priority-dot ${action.priority || "medium"}`}/><div><strong>{action.task}</strong><small>{action.meeting_title} · {action.owner || "Non attribuée"}{action.due_date ? ` · Échéance ${action.due_date}` : ""}</small></div><span className="action-priority">{action.priority || "normal"}</span></div>) : <Empty title="Aucune action trouvée" text="Modifiez les filtres ou ouvrez une réunion pour compléter ses actions."/>}</div></section>;
 }
 
 function Metric({ value, label, tone }) { return <article className={`metric-card ${tone}`}><strong>{value}</strong><span>{label}</span><i/></article>; }
 function Skeleton({ rows }) { return <div className="skeleton-list">{Array.from({ length: rows }, (_, index) => <span key={index}/>)}</div>; }
 function Empty({ title, text }) { return <div className="panel-empty"><strong>{title}</strong><p>{text}</p></div>; }
-function PlatformMark({ platform }) { return <>{platform === "google_meet" ? "M" : platform === "teams" ? "T" : "●"}</>; }
+function PlatformMark({ platform }) { return <PlatformIcon platform={platform} decorative/>; }
 function statusLabel(status) { return ({ joining: "Connexion", live: "En direct", finalizing: "Analyse", completed: "Terminé", stopped: "Arrêté", failed: "Échec", processing: "Analyse", uploaded: "Envoyé" })[status] || status; }

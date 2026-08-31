@@ -2,7 +2,7 @@
 
 import json
 from contextlib import suppress
-from datetime import UTC, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 import websockets
@@ -17,10 +17,12 @@ from app.auth import current_user, user_id_from_token
 from app.config import settings
 from app.consent_routes import is_active, participants_for
 from app.db import engine, get_session
+from app.emailing import EmailError, send_report_email
 from app.llm import SummaryError, generate_podcast
 from app.meeting_artifacts import google_meet_context
 from app.meeting_skills import public_skills
 from app.models import (
+    CalendarConnection,
     CalendarEvent,
     ConsentSession,
     ConsentSessionStatus,
@@ -33,10 +35,12 @@ from app.models import (
 )
 from app.remote_monitor import watch_remote_meeting
 from app.remote_processing import (
+    chat_sender,
     finalize_remote_meeting,
     is_stop_command,
     reanalyze_remote_meeting,
     stop_and_erase_remote_meeting,
+    stop_for_participant,
     sync_remote_meeting,
 )
 
@@ -53,6 +57,24 @@ class PodcastInput(BaseModel):
     format: Literal["deep_dive", "brief", "critique", "debate"] = "deep_dive"
     minutes: int = Field(default=5, ge=1, le=15)
     focus: str | None = Field(default=None, max_length=300)
+
+
+class ActionUpdate(BaseModel):
+    owner_email: str | None = Field(default=None, max_length=320)
+    due_date: str | None = Field(default=None, max_length=10, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    priority: Literal["low", "medium", "high"] | None = None
+
+
+class ReportEmailInput(BaseModel):
+    recipient_emails: list[str] = Field(min_length=1, max_length=50)
+
+
+class FollowUpInput(BaseModel):
+    title: str = Field(min_length=3, max_length=200)
+    starts_at: datetime
+    duration_minutes: int = Field(default=30, ge=15, le=480)
+    participant_emails: list[str] = Field(min_length=1, max_length=50)
+    calendar_connection_id: str | None = None
 
 
 @router.websocket("/remote-meetings/{meeting_id}/live")
@@ -101,7 +123,7 @@ async def remote_meeting_live(websocket: WebSocket, meeting_id: str):
                 elif event.get("type") == "chat.received":
                     payload = event.get("payload") or {}
                     if is_stop_command(str(payload.get("text") or "")):
-                        stop_and_erase_remote_meeting(meeting_id)
+                        stop_for_participant(meeting_id, chat_sender(payload))
                         await websocket.send_json(
                             {"type": "status", "status": "stopped", "reason": "chat"}
                         )
@@ -122,6 +144,14 @@ def remote_detail(meeting: RemoteMeeting) -> dict:
     report = json.loads(meeting.report_json) if meeting.report_json else None
     segments = vexa.normalize_timeline(json.loads(meeting.segments_json or "[]"))
     duration = int(max((item["end"] for item in segments), default=meeting.duration_seconds))
+    with Session(engine) as db:
+        participants = list(
+            db.exec(
+                select(ParticipantConsent).where(
+                    ParticipantConsent.session_id == meeting.consent_session_id
+                )
+            )
+        )
     return {
         "id": meeting.id,
         "consent_session_id": meeting.consent_session_id,
@@ -146,6 +176,15 @@ def remote_detail(meeting: RemoteMeeting) -> dict:
         "transcript": meeting.transcript,
         "segments": segments,
         "report": report,
+        "participants": [
+            {
+                "name": item.name,
+                "email": item.email,
+                "active": bool(item.consented_at and not item.withdrawn_at),
+            }
+            for item in participants
+            if item.email
+        ],
         "skills": public_skills(),
         "provider_data_deleted": bool(meeting.provider_deleted_at),
         "provider_cleanup_error": meeting.provider_cleanup_error,
@@ -259,15 +298,10 @@ def get_remote_meeting(
 ):
     meeting = owned_remote(meeting_id, user, db)
     report = json.loads(meeting.report_json or "{}")
-    artifacts = report.get("provider_artifacts") or {}
-    if (
-        meeting.status == RemoteMeetingStatus.COMPLETED
-        and meeting.platform == "google_meet"
-        and not artifacts.get("recordings")
-    ):
+    if meeting.status == RemoteMeetingStatus.COMPLETED and meeting.platform == "google_meet":
         with suppress(Exception):
             refreshed = google_meet_context(meeting, db)
-            if refreshed.get("participants") or refreshed.get("recordings"):
+            if refreshed.get("participants"):
                 report["provider_artifacts"] = refreshed
                 meeting.report_json = json.dumps(report, ensure_ascii=False)
                 db.add(meeting)
@@ -460,6 +494,151 @@ def reanalyze_meeting(
     db.commit()
     background_tasks.add_task(reanalyze_remote_meeting, meeting.id)
     return remote_detail(meeting)
+
+
+@router.put("/remote-meetings/{meeting_id}/actions/{action_index}")
+def update_meeting_action(
+    meeting_id: str,
+    action_index: int,
+    payload: ActionUpdate,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_session),
+):
+    meeting = owned_remote(meeting_id, user, db)
+    report = json.loads(meeting.report_json or "{}")
+    actions = report.get("actions") or []
+    if action_index < 0 or action_index >= len(actions):
+        raise HTTPException(404, "Action introuvable")
+    participant = None
+    if payload.owner_email:
+        participant = db.exec(
+            select(ParticipantConsent).where(
+                ParticipantConsent.session_id == meeting.consent_session_id,
+                ParticipantConsent.email == payload.owner_email.lower(),
+            )
+        ).first()
+        if not participant or not participant.consented_at or participant.withdrawn_at:
+            raise HTTPException(409, "Choisissez un participant consentant de cette réunion")
+    action = actions[action_index]
+    action["owner"] = participant.name if participant else None
+    action["owner_email"] = participant.email if participant else None
+    action["due_date"] = payload.due_date
+    action["priority"] = payload.priority
+    report.setdefault("manual_updates", []).append(
+        {
+            "section": "actions",
+            "index": action_index,
+            "updated_by": user.email,
+            "updated_at": utc_now().isoformat(),
+        }
+    )
+    meeting.report_json = json.dumps(report, ensure_ascii=False)
+    db.add(meeting)
+    db.commit()
+    return action
+
+
+@router.post("/remote-meetings/{meeting_id}/share")
+def share_meeting_report(
+    meeting_id: str,
+    payload: ReportEmailInput,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_session),
+):
+    meeting = owned_remote(meeting_id, user, db)
+    report = json.loads(meeting.report_json or "{}")
+    if not report:
+        raise HTTPException(409, "Le compte rendu n’est pas encore disponible")
+    participants = list(
+        db.exec(
+            select(ParticipantConsent).where(
+                ParticipantConsent.session_id == meeting.consent_session_id
+            )
+        )
+    )
+    allowed = {
+        item.email.lower(): item
+        for item in participants
+        if item.consented_at and not item.withdrawn_at and item.email
+    }
+    requested = {item.lower() for item in payload.recipient_emails}
+    if not requested <= allowed.keys():
+        raise HTTPException(
+            403,
+            "Le compte rendu ne peut être envoyé qu’aux participants autorisés",
+        )
+    link = f"{settings.frontend_url.rstrip('/')}/meeting/{meeting.id}"
+    failed = []
+    for email in sorted(requested):
+        participant = allowed[email]
+        try:
+            send_report_email(
+                participant.name,
+                participant.email,
+                meeting.title,
+                report.get("executive_summary") or "Le compte rendu est disponible.",
+                link,
+            )
+        except EmailError:
+            failed.append(email)
+    if failed:
+        raise HTTPException(502, f"Échec d’envoi pour : {', '.join(failed)}")
+    return {"sent": len(requested)}
+
+
+@router.post("/remote-meetings/{meeting_id}/follow-up", status_code=201)
+def create_meeting_follow_up(
+    meeting_id: str,
+    payload: FollowUpInput,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_session),
+):
+    meeting = owned_remote(meeting_id, user, db)
+    participants = list(
+        db.exec(
+            select(ParticipantConsent).where(
+                ParticipantConsent.session_id == meeting.consent_session_id
+            )
+        )
+    )
+    allowed = {
+        item.email.lower(): {"name": item.name, "email": item.email.lower()}
+        for item in participants
+        if item.consented_at and not item.withdrawn_at and item.email
+    }
+    requested = {item.lower() for item in payload.participant_emails}
+    if not requested <= allowed.keys():
+        raise HTTPException(403, "Invitez uniquement les participants autorisés de la réunion")
+    query = select(CalendarConnection).where(
+        CalendarConnection.user_id == user.id,
+        CalendarConnection.active == True,  # noqa: E712
+    )
+    connections = list(db.exec(query))
+    connection = next(
+        (item for item in connections if item.id == payload.calendar_connection_id),
+        connections[0] if connections else None,
+    )
+    if not connection:
+        raise HTTPException(409, "Connectez un agenda avant de créer la réunion")
+    from app.calendar_service import CalendarError, create_follow_up
+
+    try:
+        created = create_follow_up(
+            connection,
+            db,
+            payload.title,
+            payload.starts_at,
+            payload.starts_at + timedelta(minutes=payload.duration_minutes),
+            [allowed[email] for email in sorted(requested)],
+        )
+    except CalendarError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    return {
+        "provider": connection.provider,
+        "event_id": created.get("id"),
+        "meeting_url": created.get("hangoutLink")
+        or (created.get("onlineMeeting") or {}).get("joinUrl"),
+    }
 
 
 @router.delete("/remote-meetings/{meeting_id}", status_code=204)
