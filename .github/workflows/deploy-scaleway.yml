@@ -3,7 +3,7 @@ name: Deploy Klaria to Scaleway
 on:
   push:
     branches:
-      - brand/final-nolya-release
+      - brand/final-klaria-release
   workflow_dispatch:
 
 jobs:
@@ -34,10 +34,27 @@ jobs:
             rg.fr-par.scw.cloud/scribe-poc-private/scribe:klaria-final-${{ github.sha }}
 
       - name: Deploy container
-        uses: httptoolkit/deploy-scaleway-serverless-container-action@v1
-        with:
-          container_id: a4f75776-f15e-42d9-ad2a-1dcfc88fc9a5
-          secret_key: ${{ secrets.SCALEWAY_SECRET_KEY }}
-          registry_image_url: rg.fr-par.scw.cloud/scribe-poc-private/scribe:klaria-final
-          region: fr-par
-          timeout_seconds: 180
+        env:
+          SCW_SECRET_KEY: ${{ secrets.SCALEWAY_SECRET_KEY }}
+          CONTAINER_ID: a4f75776-f15e-42d9-ad2a-1dcfc88fc9a5
+          IMAGE: rg.fr-par.scw.cloud/scribe-poc-private/scribe:klaria-final-${{ github.sha }}
+        run: |
+          curl --silent --show-error --fail-with-body \
+            --request PATCH \
+            --header "X-Auth-Token: ${SCW_SECRET_KEY}" \
+            --header "Content-Type: application/json" \
+            --data "{\"registry_image\":\"${IMAGE}\",\"redeploy\":true}" \
+            "https://api.scaleway.com/containers/v1beta1/regions/fr-par/containers/${CONTAINER_ID}" >/dev/null
+
+          for attempt in $(seq 1 30); do
+            status=$(curl --silent --show-error --fail-with-body \
+              --header "X-Auth-Token: ${SCW_SECRET_KEY}" \
+              "https://api.scaleway.com/containers/v1beta1/regions/fr-par/containers/${CONTAINER_ID}" \
+              | python -c "import json,sys; print(json.load(sys.stdin)['status'])")
+            echo "Scaleway status: ${status}"
+            [ "$status" = "ready" ] && exit 0
+            sleep 6
+          done
+
+          echo "Scaleway container did not become ready in time."
+          exit 1
