@@ -1,16 +1,38 @@
-"""Base de données SQLite (SQLModel)."""
+"""Connexion base de données avec fallback POC."""
 
 from __future__ import annotations
 
 from collections.abc import Generator
 
 from sqlalchemy import inspect
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.config import settings
 
-_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
-engine = create_engine(settings.database_url, echo=False, connect_args=_args)
+
+def _connect_args(url: str) -> dict[str, bool]:
+    return {"check_same_thread": False} if url.startswith("sqlite") else {}
+
+
+def _engine(url: str):
+    return create_engine(url, echo=False, connect_args=_connect_args(url))
+
+
+def _available_engine():
+    primary = _engine(settings.database_url)
+    if settings.database_url.startswith("sqlite"):
+        return primary
+    try:
+        with primary.connect():
+            return primary
+    except SQLAlchemyError:
+        if not settings.allow_database_fallback:
+            raise
+        return _engine(settings.database_fallback_url)
+
+
+engine = _available_engine()
 
 
 def init_db() -> None:

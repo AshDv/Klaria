@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     environment: str = "development"
     secret_key: str = "change-this-secret-before-production"
     database_url: str = "sqlite:///./nolya.db"
+    database_fallback_url: str = "sqlite:////tmp/nolya.db"
+    allow_database_fallback: bool = True
     cors_origins: str = "http://localhost:5174"
     frontend_url: str = "http://localhost:5174"
     api_public_url: str = "http://localhost:8000"
