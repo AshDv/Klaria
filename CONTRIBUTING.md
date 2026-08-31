@@ -1,6 +1,6 @@
-# Contribuer à Nolya
+# Contribuer à Klaria
 
-Le dépôt final est `https://github.com/AshDv/NolyaProject`. Le dossier local actuel
+Le dépôt final est `https://github.com/AshDv/KlariaProject`. Le dossier local actuel
 provient d’un ancien dépôt et sert uniquement de source de travail. Il ne doit pas être
 poussé directement vers le dépôt final avec son historique.
 

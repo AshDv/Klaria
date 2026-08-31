@@ -27,11 +27,11 @@ LIVE_STATES = {"active", "in_meeting", "recording", "transcribing"}
 END_STATES = {"completed", "stopped", "ended"}
 FAIL_STATES = {"failed", "rejected", "denied"}
 STOP_COMMANDS = {
-    "stop nolya",
-    "stop nolya pour moi",
-    "arrête nolya",
-    "arrete nolya",
-    "retire nolya",
+    "stop klaria",
+    "stop klaria pour moi",
+    "arrête klaria",
+    "arrete klaria",
+    "retire klaria",
 }
 
 
@@ -94,8 +94,8 @@ def _stop_requested(messages: list[dict]) -> dict | None:
             item
             for item in reversed(messages)
             if isinstance(item, dict)
-            and not str(item.get("text") or "").startswith("Nolya est présent")
-            and "nolya" not in _plain(chat_sender(item))
+            and not str(item.get("text") or "").startswith("Klaria est présent")
+            and "klaria" not in _plain(chat_sender(item))
             and is_stop_command(str(item.get("text") or ""))
         ),
         None,
@@ -137,8 +137,8 @@ def _participant_from_hint(
 
 def _welcome_message() -> str:
     return (
-        "Nolya est présent et transcrit cette réunion avec l'accord des participants. "
-        "Écrivez « STOP NOLYA » dans ce chat pour demander l'arrêt immédiat."
+        "Klaria est présent et transcrit cette réunion avec l'accord des participants. "
+        "Écrivez « STOP KLARIA » dans ce chat pour demander l'arrêt immédiat."
     )
 
 
@@ -146,7 +146,7 @@ def _recap_message(meeting: RemoteMeeting, report) -> str:
     actions = [item.task for item in report.actions[:3]]
     action_text = "\n".join(f"• {item}" for item in actions)
     link = f"{settings.frontend_url.rstrip('/')}/meeting/{meeting.id}"
-    message = f"Compte rendu Nolya prêt\n\n{report.executive_summary}"
+    message = f"Compte rendu Klaria prêt\n\n{report.executive_summary}"
     if action_text:
         message += f"\n\nActions principales :\n{action_text}"
     return f"{message[:1600]}\n\nConsulter le compte rendu : {link}"
@@ -304,7 +304,7 @@ def finalize_remote_meeting(meeting_id: str) -> None:
         if not segments or not meeting.transcript:
             meeting.status = RemoteMeetingStatus.FAILED
             meeting.error = (
-                "Aucune parole n'a été transcrite. Vérifiez que l'hôte a admis Nolya "
+                "Aucune parole n'a été transcrite. Vérifiez que l'hôte a admis Klaria "
                 "et qu'un participant a parlé."
             )
             meeting.ended_at = utc_now()

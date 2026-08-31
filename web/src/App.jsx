@@ -124,7 +124,7 @@ function AuthenticatedApp() {
 }
 
 function Brand() {
-  return <div className="brand"><span className="brand-mark"><Icon name="mic" size={21} /></span><span>Nolya</span></div>;
+  return <div className="brand"><span className="brand-mark"><Icon name="mic" size={21} /></span><span>Klaria</span></div>;
 }
 
 function NavButton({ active, icon, label, onClick }) {
@@ -164,14 +164,14 @@ function AuthScreen({ onAuthenticated }) {
         <div className="story-copy">
           <span className="eyebrow">La réunion devient claire</span>
           <h1>Votre réunion.<br />Enfin exploitable.</h1>
-          <p>Nolya rejoint Meet ou Teams, distingue les voix et transforme le direct en décisions, actions et compte rendu.</p>
+          <p>Klaria rejoint Meet ou Teams, distingue les voix et transforme le direct en décisions, actions et compte rendu.</p>
           <div className="feature-row"><span><Icon name="check" size={16} /> Meet + Teams</span><span><Icon name="check" size={16} /> IA Mistral</span></div>
         </div>
         <small>Vos données restent sous votre contrôle.</small>
       </section>
       <section className="auth-panel">
         <div className="auth-card">
-          <span className="eyebrow">Bienvenue sur Nolya</span>
+          <span className="eyebrow">Bienvenue sur Klaria</span>
           <h2>{mode === "login" ? "Ravi de vous revoir" : "Créer votre espace"}</h2>
           <p className="muted">Une minute suffit pour commencer.</p>
           <a className="google-button" href={api.googleSsoUrl()}><GoogleLogo /> Continuer avec Google</a>
@@ -183,7 +183,7 @@ function AuthScreen({ onAuthenticated }) {
             <Field label="Mot de passe"><input type="password" value={password} onChange={e => setPassword(e.target.value)} minLength="10" required autoComplete={mode === "login" ? "current-password" : "new-password"} /><small>10 caractères minimum</small></Field>
             {mode === "register" && <>
               <label className="legal-check"><input type="checkbox" checked={privacyAccepted} onChange={(event) => setPrivacyAccepted(event.target.checked)} required /><span>J’ai lu la <a href="/privacy-policy" target="_blank">politique de confidentialité</a> : traitements, conservation et droits d’effacement.</span></label>
-              <label className="legal-check"><input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} required /><span>J’accepte séparément les <a href="/terms" target="_blank">conditions d’utilisation</a> de Nolya.</span></label>
+              <label className="legal-check"><input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} required /><span>J’accepte séparément les <a href="/terms" target="_blank">conditions d’utilisation</a> de Klaria.</span></label>
             </>}
             {error && <div className="alert error">{error}</div>}
             <button className="primary-button" disabled={busy}>{busy ? "Veuillez patienter…" : mode === "login" ? "Se connecter" : "Créer mon compte"}</button>
@@ -220,7 +220,7 @@ function Result({ id, onBack }) {
   if (error) return <div className="alert error">{error}</div>;
   if (!item) return <Loading />;
   const waiting = item.status === "uploaded" || item.status === "processing";
-  return <section className="page"><button className="back-button" onClick={onBack}>← Mes enregistrements</button><header className="result-header"><div><Status status={item.status}/><h1>{item.title}</h1><p>{new Date(item.created_at).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })}</p></div><button className="icon-button danger" onClick={remove} aria-label="Supprimer"><Icon name="trash"/></button></header>{waiting && <div className="processing-card"><span className="large-spinner"/><h2>Nolya prépare votre compte rendu</h2><p>Voxtral sépare les intervenants, puis Mistral Medium 3.5 organise les informations.</p></div>}{item.status === "failed" && <div className="processing-card error-state"><h2>Le traitement n’a pas abouti</h2><p>{item.error}</p><p>L’audio a été supprimé par sécurité. Effectuez un nouvel enregistrement.</p></div>}{item.status === "completed" && <div className="result-grid"><article className="content-card summary-card"><span className="card-label">Résumé exécutif</span><p className="summary-text">{item.summary}</p></article>{item.report ? <DetailedReport report={item.report} segments={item.segments} /> : <><ResultList title="Décisions" items={item.decisions}/><ResultList title="Actions" items={item.actions.map(action => `${action.task}${action.owner ? ` — ${action.owner}` : ""}`)}/></>}<article className="content-card transcript-card"><span className="card-label">Transcription diarisée</span>{item.segments.length ? item.segments.map((segment) => <p key={segment.id}><strong>{segment.speaker}</strong> [{segment.start}s] — {segment.text}</p>) : <p>{item.transcript}</p>}</article></div>}</section>;
+  return <section className="page"><button className="back-button" onClick={onBack}>← Mes enregistrements</button><header className="result-header"><div><Status status={item.status}/><h1>{item.title}</h1><p>{new Date(item.created_at).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })}</p></div><button className="icon-button danger" onClick={remove} aria-label="Supprimer"><Icon name="trash"/></button></header>{waiting && <div className="processing-card"><span className="large-spinner"/><h2>Klaria prépare votre compte rendu</h2><p>Voxtral sépare les intervenants, puis Mistral Medium 3.5 organise les informations.</p></div>}{item.status === "failed" && <div className="processing-card error-state"><h2>Le traitement n’a pas abouti</h2><p>{item.error}</p><p>L’audio a été supprimé par sécurité. Effectuez un nouvel enregistrement.</p></div>}{item.status === "completed" && <div className="result-grid"><article className="content-card summary-card"><span className="card-label">Résumé exécutif</span><p className="summary-text">{item.summary}</p></article>{item.report ? <DetailedReport report={item.report} segments={item.segments} /> : <><ResultList title="Décisions" items={item.decisions}/><ResultList title="Actions" items={item.actions.map(action => `${action.task}${action.owner ? ` — ${action.owner}` : ""}`)}/></>}<article className="content-card transcript-card"><span className="card-label">Transcription diarisée</span>{item.segments.length ? item.segments.map((segment) => <p key={segment.id}><strong>{segment.speaker}</strong> [{segment.start}s] — {segment.text}</p>) : <p>{item.transcript}</p>}</article></div>}</section>;
 }
 
 function ResultList({ title, items }) { return <article className="content-card"><span className="card-label">{title}</span>{items.length ? <ul>{items.map((item, index) => <li key={`${item}-${index}`}><span><Icon name="check" size={15}/></span>{item}</li>)}</ul> : <p className="muted">Aucun élément identifié.</p>}</article>; }
@@ -249,7 +249,7 @@ function Privacy() {
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = "nolya-mes-donnees.json";
+    link.download = "klaria-mes-donnees.json";
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -262,5 +262,5 @@ function Privacy() {
   }
 
   const retention = notice?.retention_days;
-  return <section className="page"><header className="page-header"><div><span className="eyebrow">Vos droits</span><h1>Confidentialité</h1><p>Collecter le strict nécessaire, expliquer clairement et supprimer réellement.</p></div></header><div className="privacy-grid"><article className="content-card"><h3>Finalité et base légale</h3><p>Le consentement autorise uniquement la capture, la transcription diarisée et la production du compte rendu demandé.</p></article><article className="content-card"><h3>Sous-traitants</h3><p>Vexa transcrit les réunions en ligne et Mistral produit le compte rendu. Aucun e-mail n’est transmis aux modèles.</p></article><article className="content-card"><h3>Conservation</h3><p>Le bot ne conserve pas l’audio ni le chat et ses données temporaires sont purgées après l’analyse. Les résultats expirent après {retention || "…"} jours.</p></article><article className="content-card"><h3>Retrait</h3><p>Chaque participant peut utiliser son lien ou écrire STOP NOLYA dans le chat. Le bot s’arrête et efface alors le direct.</p></article></div><div className="privacy-actions"><button className="secondary-button" onClick={exportData}>Exporter mes données</button><button className="stop-button" onClick={deleteAccount}>Supprimer mon compte</button></div></section>;
+  return <section className="page"><header className="page-header"><div><span className="eyebrow">Vos droits</span><h1>Confidentialité</h1><p>Collecter le strict nécessaire, expliquer clairement et supprimer réellement.</p></div></header><div className="privacy-grid"><article className="content-card"><h3>Finalité et base légale</h3><p>Le consentement autorise uniquement la capture, la transcription diarisée et la production du compte rendu demandé.</p></article><article className="content-card"><h3>Sous-traitants</h3><p>Vexa transcrit les réunions en ligne et Mistral produit le compte rendu. Aucun e-mail n’est transmis aux modèles.</p></article><article className="content-card"><h3>Conservation</h3><p>Le bot ne conserve pas l’audio ni le chat et ses données temporaires sont purgées après l’analyse. Les résultats expirent après {retention || "…"} jours.</p></article><article className="content-card"><h3>Retrait</h3><p>Chaque participant peut utiliser son lien ou écrire STOP KLARIA dans le chat. Le bot s’arrête et efface alors le direct.</p></article></div><div className="privacy-actions"><button className="secondary-button" onClick={exportData}>Exporter mes données</button><button className="stop-button" onClick={deleteAccount}>Supprimer mon compte</button></div></section>;
 }

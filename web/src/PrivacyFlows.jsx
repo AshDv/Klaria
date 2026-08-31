@@ -33,7 +33,7 @@ export function PublicConsent({ token }) {
       <li>L’audio sera transmis à {notice.processor} pour transcription et diarisation.</li>
       <li>La transcription sera analysée pour produire le résumé, les décisions et les actions.</li>
       <li>{notice.media_recording_enabled ? `Vous acceptez aussi la conservation du replay audio pendant ${notice.media_retention_days} jour${notice.media_retention_days > 1 ? "s" : ""} maximum.` : "L’audio sera supprimé après le traitement."}</li>
-      <li>Nolya ne capture, ne récupère et n’affiche ni la vidéo ni le partage d’écran.</li>
+      <li>Klaria ne capture, ne récupère et n’affiche ni la vidéo ni le partage d’écran.</li>
       <li>Les résultats seront conservés au maximum {notice.retention_days} jours.</li>
       <li>Vous pouvez retirer votre accord ou demander l’effacement depuis cette page.</li>
     </ul>
@@ -53,7 +53,7 @@ export function PublicConsent({ token }) {
 }
 
 export function PublicShell({ children }) {
-  return <main className="public-page"><section className="content-card public-card"><div className="brand"><span className="brand-mark">N</span><span>Nolya</span></div>{children}</section></main>;
+  return <main className="public-page"><section className="content-card public-card"><div className="brand"><span className="brand-mark">N</span><span>Klaria</span></div>{children}</section></main>;
 }
 
 export function PublicLegal({ type }) {
@@ -62,8 +62,8 @@ export function PublicLegal({ type }) {
   if (!notice) return <PublicShell><p>Chargement…</p></PublicShell>;
   if (type === "terms") return <PublicShell>
     <span className="eyebrow">Conditions d’utilisation · {notice.terms_version}</span>
-    <h1>Utiliser Nolya de façon responsable</h1>
-    <p>Nolya aide l’organisateur à transcrire et résumer une réunion. Il reste responsable de la réunion, de l’exactitude des informations fournies et du respect des droits des participants.</p>
+    <h1>Utiliser Klaria de façon responsable</h1>
+    <p>Klaria aide l’organisateur à transcrire et résumer une réunion. Il reste responsable de la réunion, de l’exactitude des informations fournies et du respect des droits des participants.</p>
     <ul className="notice-list"><li>Aucune capture ne doit commencer avant les consentements requis.</li><li>Le compte rendu généré par l’IA doit être relu avant toute décision.</li><li>Les accès au compte et aux agendas ne doivent pas être partagés.</li><li>Un participant peut retirer son accord et demander l’effacement.</li></ul>
     <p>Contact : <a href={`mailto:${notice.privacy_contact}`}>{notice.privacy_contact}</a></p>
   </PublicShell>;

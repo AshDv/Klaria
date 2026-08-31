@@ -75,7 +75,7 @@ export function MeetingsHub({ onNew, onOpenRecording, onOpenRemote }) {
 
   async function toggle(event) {
     if (!event.auto_join && !confirm(
-      "Activer Nolya ? Les invités recevront une demande de consentement. Le bot attendra tous les accords.",
+      "Activer Klaria ? Les invités recevront une demande de consentement. Le bot attendra tous les accords.",
     )) return;
     setBusy(event.id); setError("");
     try {
@@ -108,7 +108,7 @@ export function MeetingsHub({ onNew, onOpenRecording, onOpenRemote }) {
   return <section className="page meetings-hub">
     <header className="page-header meetings-header">
       <div><span className="eyebrow">Espace central</span><h1>Réunions</h1><p>Préparez les prochaines réunions et retrouvez les comptes rendus terminés.</p></div>
-      <button className="primary-button" onClick={onNew}>＋ Inviter Nolya</button>
+      <button className="primary-button" onClick={onNew}>＋ Inviter Klaria</button>
     </header>
     {error && <div className="alert error">{error}</div>}
     {message && <div className="alert success">{message}</div>}
@@ -126,7 +126,7 @@ export function MeetingsHub({ onNew, onOpenRecording, onOpenRemote }) {
       <div className="calendar-summary">
         <div className="calendar-summary-copy">
           <span className="calendar-stack" aria-hidden="true"><i><PlatformIcon platform="google" decorative/></i><i><PlatformIcon platform="microsoft" decorative/></i></span>
-          <div><strong>{connected.length ? `${connected.length} agenda(s) connecté(s)` : "Connectez votre agenda"}</strong><small>{connected.length ? "Titres, horaires et invités sont récupérés automatiquement." : "Nolya détectera vos réunions Meet et Teams."}</small></div>
+          <div><strong>{connected.length ? `${connected.length} agenda(s) connecté(s)` : "Connectez votre agenda"}</strong><small>{connected.length ? "Titres, horaires et invités sont récupérés automatiquement." : "Klaria détectera vos réunions Meet et Teams."}</small></div>
         </div>
         <div className="calendar-summary-actions">
           <button className="text-button inline" onClick={() => setShowConnections(!showConnections)}>{showConnections ? "Fermer" : "Gérer"}</button>
@@ -159,7 +159,7 @@ export function MeetingsHub({ onNew, onOpenRecording, onOpenRemote }) {
     </div>}
 
     {history === null || status === null ? <div className="loading"><span className="large-spinner"/><p>Chargement…</p></div>
-      : !filtered.length ? <div className="empty-card meeting-empty"><strong>{query || platform !== "all" ? "Aucun résultat" : section === "upcoming" ? "Aucune réunion à venir" : "Aucun compte rendu"}</strong><p>{query || platform !== "all" ? "Modifiez la recherche ou le filtre." : section === "upcoming" ? "Actualisez vos agendas ou invitez Nolya manuellement." : "Vos réunions terminées apparaîtront ici."}</p>{section === "upcoming" && !query && <button className="primary-button compact" onClick={onNew}>Inviter Nolya</button>}</div>
+      : !filtered.length ? <div className="empty-card meeting-empty"><strong>{query || platform !== "all" ? "Aucun résultat" : section === "upcoming" ? "Aucune réunion à venir" : "Aucun compte rendu"}</strong><p>{query || platform !== "all" ? "Modifiez la recherche ou le filtre." : section === "upcoming" ? "Actualisez vos agendas ou invitez Klaria manuellement." : "Vos réunions terminées apparaîtront ici."}</p>{section === "upcoming" && !query && <button className="primary-button compact" onClick={onNew}>Inviter Klaria</button>}</div>
       : section === "upcoming" && display === "calendar" ? <CalendarMonth
           events={filtered}
           month={month}
@@ -242,7 +242,7 @@ function UpcomingMeeting({ item, busy, onToggle }) {
   return <article className="meeting-card upcoming-meeting">
     <div className={`meeting-platform ${item.platform}`}><PlatformIcon platform={item.platform} decorative/><small>{time}</small></div>
     <div className="meeting-card-copy"><strong>{item.title}</strong><span>{platformLabel(item.platform)} · {item.attendees.length} invité(s)</span></div>
-    <div className="meeting-consent"><strong>{item.consent_session_id ? "Accords envoyés" : "À préparer"}</strong><span>{item.remote_meeting_id ? "Nolya est lancé" : item.auto_join ? "Lancement automatique" : "Lancement manuel"}</span></div>
+    <div className="meeting-consent"><strong>{item.consent_session_id ? "Accords envoyés" : "À préparer"}</strong><span>{item.remote_meeting_id ? "Klaria est lancé" : item.auto_join ? "Lancement automatique" : "Lancement manuel"}</span></div>
     <label className="automation-switch"><input type="checkbox" checked={item.auto_join} disabled={busy} onChange={onToggle}/><span/><em>{item.auto_join ? "Auto" : "Manuel"}</em></label>
   </article>;
 }

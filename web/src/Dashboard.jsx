@@ -18,7 +18,7 @@ export function Dashboard({ user, onNewBot, onOpen }) {
   return <section className="page dashboard-page">
     <header className="dashboard-header">
       <div><span className="eyebrow">Espace de travail</span><h1>Bonjour {firstName},</h1><p>Chaque réunion devient une suite de décisions claires.</p></div>
-      <button className="primary-button dashboard-cta" onClick={onNewBot}><span>＋</span> Inviter Nolya</button>
+      <button className="primary-button dashboard-cta" onClick={onNewBot}><span>＋</span> Inviter Klaria</button>
     </header>
     {error && <div className="alert error">{error}</div>}
     <div className="metric-grid">
@@ -35,7 +35,7 @@ export function Dashboard({ user, onNewBot, onOpen }) {
             <span className={`platform-tile ${item.platform}`}><PlatformMark platform={item.platform}/></span>
             <span className="meeting-line-copy"><strong>{item.title}</strong><small>{item.source === "bot" ? "Assistant en ligne" : "Dictaphone"} · {dateLabel(item.created_at)}</small></span>
             <span className={`status ${item.status}`}>{statusLabel(item.status)}</span><span className="arrow">↗</span>
-          </button>) : <Empty title="Aucune réunion" text="Invitez Nolya dans un Meet ou un Teams pour commencer."/>}
+          </button>) : <Empty title="Aucune réunion" text="Invitez Klaria dans un Meet ou un Teams pour commencer."/>}
       </article>
       <article className="dashboard-panel action-panel">
         <div className="panel-heading"><div><span className="card-label">Focus</span><h2>Prochaines actions</h2></div></div>
@@ -47,7 +47,7 @@ export function Dashboard({ user, onNewBot, onOpen }) {
       </article>
     </div>
     <article className="bot-banner">
-      <div><span className="eyebrow">Assistant de réunion</span><h2>Meet ou Teams : collez le lien, Nolya fait le reste.</h2><p>Consentement vérifié, transcription attribuée aux intervenants, décisions et actions prêtes à partager.</p></div>
+      <div><span className="eyebrow">Assistant de réunion</span><h2>Meet ou Teams : collez le lien, Klaria fait le reste.</h2><p>Consentement vérifié, transcription attribuée aux intervenants, décisions et actions prêtes à partager.</p></div>
       <div className="bot-orbit" aria-hidden="true"><span>S</span><i/><i/><i/></div>
     </article>
   </section>;

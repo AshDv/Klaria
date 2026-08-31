@@ -4,18 +4,18 @@
   "version": "1.0.0",
   "id": "6c4f1cd3-dd5d-4d17-a030-3b0316ebb026",
   "developer": {
-    "name": "Nolya",
-    "websiteUrl": "https://scribepoc342c95dc-nolya.functions.fnc.fr-par.scw.cloud",
-    "privacyUrl": "https://scribepoc342c95dc-nolya.functions.fnc.fr-par.scw.cloud/privacy-policy",
-    "termsOfUseUrl": "https://scribepoc342c95dc-nolya.functions.fnc.fr-par.scw.cloud/terms"
+    "name": "Klaria",
+    "websiteUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud",
+    "privacyUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/privacy-policy",
+    "termsOfUseUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/terms"
   },
   "name": {
-    "short": "Nolya",
-    "full": "Nolya, intelligence de réunion"
+    "short": "Klaria",
+    "full": "Klaria, intelligence de réunion"
   },
   "description": {
     "short": "Transcriptions, décisions et actions dans Teams.",
-    "full": "Nolya transforme une réunion consentie en transcription, décisions, actions et brief audio."
+    "full": "Klaria transforme une réunion consentie en transcription, décisions, actions et brief audio."
   },
   "icons": {
     "outline": "outline.png",
@@ -24,27 +24,27 @@
   "accentColor": "#173E35",
   "staticTabs": [
     {
-      "entityId": "nolya-home",
+      "entityId": "klaria-home",
       "name": "Accueil",
-      "contentUrl": "https://scribepoc342c95dc-nolya.functions.fnc.fr-par.scw.cloud/?host=teams&view=dashboard",
-      "websiteUrl": "https://scribepoc342c95dc-nolya.functions.fnc.fr-par.scw.cloud/",
+      "contentUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/?host=teams&view=dashboard",
+      "websiteUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/",
       "scopes": ["personal"]
     },
     {
-      "entityId": "nolya-meetings",
+      "entityId": "klaria-meetings",
       "name": "Réunions",
-      "contentUrl": "https://scribepoc342c95dc-nolya.functions.fnc.fr-par.scw.cloud/?host=teams&view=meetings",
-      "websiteUrl": "https://scribepoc342c95dc-nolya.functions.fnc.fr-par.scw.cloud/",
+      "contentUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/?host=teams&view=meetings",
+      "websiteUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/",
       "scopes": ["personal"]
     },
     {
-      "entityId": "nolya-actions",
+      "entityId": "klaria-actions",
       "name": "Actions",
-      "contentUrl": "https://scribepoc342c95dc-nolya.functions.fnc.fr-par.scw.cloud/?host=teams&view=actions",
-      "websiteUrl": "https://scribepoc342c95dc-nolya.functions.fnc.fr-par.scw.cloud/",
+      "contentUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/?host=teams&view=actions",
+      "websiteUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/",
       "scopes": ["personal"]
     }
   ],
   "permissions": ["identity"],
-  "validDomains": ["scribepoc342c95dc-nolya.functions.fnc.fr-par.scw.cloud"]
+  "validDomains": ["scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud"]
 }

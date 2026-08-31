@@ -35,7 +35,7 @@ def test_processing_stores_report_and_removes_audio(monkeypatch, tmp_path: Path)
         recording_id = recording.id
 
     monkeypatch.setattr(
-        "app.processing.trannolya_audio",
+        "app.processing.speech_to_text_audio",
         lambda *_: {
             "text": "Une décision a été prise.",
             "segments": [

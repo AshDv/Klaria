@@ -1,6 +1,6 @@
 # Traçabilité RNCP36146
 
-| Attente | Preuve Nolya |
+| Attente | Preuve Klaria |
 |---|---|
 | Spécifier les besoins | Tickets Jira, critères d’acceptation et règles de consentement |
 | État de l’art | Benchmark STT, LLM, hébergement et cadre RGPD |
