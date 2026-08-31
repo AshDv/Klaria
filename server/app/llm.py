@@ -182,7 +182,11 @@ def _plain(value: str) -> str:
 
 def _protect_speaker_identity(result: MeetingSummary, segments: list[dict]) -> None:
     """Empêche un nom invité de devenir une identité sans preuve audio/plateforme."""
-    generic = re.compile(r"^(speaker|intervenant|unknown|inconnu)(\s+\d+)?$", re.I)
+    generic = re.compile(
+        r"^(speaker|intervenant|unknown|inconnu|sous titrage|sous titre|caption|subtitle)"
+        r"(\s+\w+)?$",
+        re.I,
+    )
     labels = {_plain(item["speaker"]) for item in segments}
     for speaker in result.speakers:
         label = _plain(speaker.label)
@@ -194,6 +198,19 @@ def _protect_speaker_identity(result: MeetingSummary, segments: list[dict]) -> N
         elif label not in labels:
             speaker.participant_name = None
             speaker.confidence = "unknown"
+
+
+def _clean_report_text(value: str) -> str:
+    """Transforme le Markdown accidentel du modèle en texte lisible et sûr."""
+    value = re.sub(r"(?m)^\s{0,3}#{1,6}\s+", "", value)
+    value = re.sub(
+        r"\*\*(.*?)\*\*|__(.*?)__",
+        lambda match: match.group(1) or match.group(2),
+        value,
+    )
+    value = re.sub(r"(?m)^\s*[-*]\s+", "• ", value)
+    value = re.sub(r"\n{3,}", "\n\n", value)
+    return value.strip()
 
 
 def generate_summary(
@@ -260,6 +277,8 @@ def generate_summary(
         raise SummaryError("Le compte rendu cite un segment inexistant")
     _repair_coverage(result, expected)
     _protect_speaker_identity(result, segments)
+    result.executive_summary = _clean_report_text(result.executive_summary)
+    result.detailed_minutes = _clean_report_text(result.detailed_minutes)
     for index, turn in enumerate(result.podcast_script):
         expected_host = "host_a" if index % 2 == 0 else "host_b"
         if turn.host != expected_host:

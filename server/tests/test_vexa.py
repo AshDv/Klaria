@@ -110,3 +110,20 @@ def test_replaces_same_provider_segment_even_if_timestamp_moves():
     segments = vexa.normalize_segments(data)
     assert len(segments) == 1
     assert segments[0]["text"] == "Nous allons livrer vendredi."
+
+
+def test_rejects_caption_service_labels_as_people():
+    segments = vexa.normalize_segments(
+        {
+            "segments": [
+                {
+                    "start_time": 0,
+                    "end_time": 2,
+                    "speaker": "**Sous-titrage ST' 501",
+                    "text": "Bonjour.",
+                }
+            ]
+        }
+    )
+
+    assert segments[0]["speaker"] == "Intervenant non identifié"

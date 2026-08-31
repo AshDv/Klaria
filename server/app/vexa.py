@@ -136,11 +136,16 @@ def recording_for_meeting(provider_meeting_id: int) -> dict | None:
     if not recording:
         return None
     media = recording.get("media_files") or []
-    master = next(
-        (item for item in media if str(item.get("filename", "")).startswith("master.")),
+    audio = next(
+        (
+            item
+            for item in media
+            if str(item.get("type") or "").casefold() == "audio"
+            or str(item.get("format") or "").casefold() in {"mp3", "wav", "m4a", "ogg"}
+        ),
         None,
-    ) or (media[-1] if media else None)
-    return {"recording": recording, "media": master} if master else None
+    )
+    return {"recording": recording, "media": audio} if audio else None
 
 
 def recording_stream(recording_id: int, media_id: int, byte_range: str | None = None):
@@ -245,6 +250,19 @@ def _plain_text(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value).strip()
 
 
+def clean_speaker(value: str | None) -> str:
+    """Écarte les libellés techniques produits par les sous-titres."""
+    raw = re.sub(r"[*_`#]+", "", str(value or "")).strip()
+    plain = _plain_text(raw)
+    invalid = (
+        not plain
+        or plain.startswith(("sous titrage", "sous titre", "caption", "subtitle"))
+        or bool(re.fullmatch(r"(?:st|cc|speaker|intervenant|unknown|inconnu)[\s_-]*\d*", plain))
+        or bool(re.fullmatch(r"\d+", plain))
+    )
+    return "Intervenant non identifié" if invalid else raw[:120]
+
+
 def _relative_time(item: dict, field: str, base: float | None) -> float:
     relative = _timestamp(item.get(field) or item.get(field.removesuffix("_time")))
     absolute = _timestamp(item.get(f"absolute_{field}"))
@@ -290,7 +308,7 @@ def normalize_segments(data: dict) -> list[dict]:
                 "segment_uid": item.get("segment_id") or item.get("utterance_id"),
                 "start": round(start, 3),
                 "end": round(end, 3),
-                "speaker": str(item.get("speaker") or "Intervenant inconnu").strip(),
+                "speaker": clean_speaker(item.get("speaker")),
                 "text": text,
                 "completed": bool(item.get("completed", True)),
                 "language": item.get("language"),

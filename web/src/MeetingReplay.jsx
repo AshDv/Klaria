@@ -12,7 +12,6 @@ export function MeetingReplay({ meeting }) {
   const [mediaUrl, setMediaUrl] = useState("");
   const media = useRef(null);
   const replay = useMemo(() => buildReplay(meeting), [meeting]);
-  const nativeReplay = meeting.report?.provider_artifacts?.recordings?.find((item) => item.url);
   const active = replay.segments.filter((item) => item.start <= currentTime).slice(-1)[0] || replay.segments[0];
 
   useEffect(() => {
@@ -56,13 +55,12 @@ export function MeetingReplay({ meeting }) {
       <div className="replay-screen">
         <div className="replay-screen-meta"><span>Replay de la réunion</span><span>{meeting.media_available ? `Audio conservé avec consentement${meeting.media_expires_at ? ` · suppression ${parisDateTime(meeting.media_expires_at)}` : ""}` : "Reconstruction depuis le transcript"}</span></div>
         <div className="replay-speaker"><span>{initials(active?.speaker)}</span><small>{active?.speaker || "Réunion"}</small><p>{active?.text || "Aucun passage disponible."}</p></div>
-        {mediaUrl && (meeting.media_type === "video" ? <video ref={media} src={mediaUrl} onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}/> : <audio ref={media} src={mediaUrl} onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}/>)}
+        {mediaUrl && <audio ref={media} src={mediaUrl} onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}/>}
         <button className="replay-play" onClick={toggle} aria-label={playing ? "Mettre en pause" : "Lire le replay"}>{playing ? "Ⅱ" : "▶"}</button>
       </div>
       <div className="replay-controls">
         <span>{clock(currentTime)}</span><input aria-label="Position du replay" type="range" min="0" max={replay.duration} step=".1" value={currentTime} onChange={(event) => seek(event.target.value)}/><span>{clock(replay.duration)}</span>
       </div>
-      {nativeReplay && <div className="native-replay"><div><strong>Vidéo et partage d’écran</strong><span>Le replay complet reste chez {meeting.platform === "teams" ? "Microsoft Teams" : "Google Meet"} et n’est pas copié par Scribe.</span></div><a href={nativeReplay.url} target="_blank" rel="noreferrer">Ouvrir le replay</a></div>}
       <div className="replay-panels">
         <div className="replay-panel-tabs"><button className={panel === "speakers" ? "active" : ""} onClick={() => setPanel("speakers")}>Intervenants</button><button className={panel === "topics" ? "active" : ""} onClick={() => setPanel("topics")}>Rubriques</button><button className={panel === "chapters" ? "active" : ""} onClick={() => setPanel("chapters")}>Chapitres</button></div>
         {panel === "speakers" && <div className="speaker-timelines">{replay.speakers.map((speaker) => <div className="speaker-timeline" key={speaker.name}><button onClick={() => seek(speaker.ranges[0]?.start || 0)}><span style={{ background:speaker.color }}>{initials(speaker.name)}</span><strong>{speaker.name}</strong><small>{speaker.share}%</small></button><div className="timeline-track">{speaker.ranges.map((range, index) => <i key={index} title={`${speaker.name}, ${clock(range.start)}`} style={{ background:speaker.color, left:`${range.start / replay.duration * 100}%`, width:`${Math.max(.7, (range.end - range.start) / replay.duration * 100)}%` }} onClick={() => seek(range.start)}/>)}</div></div>)}</div>}
@@ -96,12 +94,12 @@ function buildReplay(meeting) {
     const relativeEnd = Number.isFinite(numericEnd) && numericEnd >= start && numericEnd < 86400 ? numericEnd : absoluteEnd - base;
     const estimate = Math.max(1.5, String(item.text || "").split(/\s+/).length / 2.4);
     const end = Number.isFinite(relativeEnd) && relativeEnd > start ? relativeEnd : start + estimate;
-    const generic = ["speaker", "intervenant inconnu"].includes(String(item.speaker).toLocaleLowerCase("fr"));
+    const generic = ["speaker", "intervenant inconnu", "intervenant non identifié"].includes(String(item.speaker).toLocaleLowerCase("fr"));
     return { ...item, id, start, end, speaker: generic && onlyName ? onlyName : names[item.speaker] || item.speaker };
   }).sort((left, right) => left.start - right.start);
   const duration = Math.max(1, meeting.duration_seconds || 0, ...segments.map((item) => item.end));
   const grouped = segments.reduce((result, item) => {
-    const name = item.speaker || "Intervenant inconnu";
+    const name = item.speaker || "Intervenant non identifié";
     result[name] = [...(result[name] || []), item];
     return result;
   }, {});
