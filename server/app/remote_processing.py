@@ -1,7 +1,9 @@
 """Synchronisation et analyse des réunions suivies par le bot."""
 
 import json
+import re
 import time
+import unicodedata
 from contextlib import suppress
 from datetime import timedelta
 
@@ -24,7 +26,13 @@ from app.models import (
 LIVE_STATES = {"active", "in_meeting", "recording", "transcribing"}
 END_STATES = {"completed", "stopped", "ended"}
 FAIL_STATES = {"failed", "rejected", "denied"}
-STOP_COMMANDS = ("stop scribe", "arrête scribe", "arrete scribe", "retire scribe")
+STOP_COMMANDS = {
+    "stop scribe",
+    "stop scribe pour moi",
+    "arrête scribe",
+    "arrete scribe",
+    "retire scribe",
+}
 
 
 def _join_failure_message(data: dict) -> str:
@@ -75,16 +83,56 @@ def _store_provider_media(meeting: RemoteMeeting, provider_data: dict) -> None:
 
 
 def is_stop_command(text: str) -> bool:
-    normalized = " ".join(text.casefold().split())
+    normalized = re.sub(r"[^a-zà-ÿ ]+", " ", text.casefold())
+    normalized = " ".join(normalized.split())
     return any(command in normalized for command in STOP_COMMANDS)
 
 
-def _stop_requested(messages: list[dict]) -> bool:
-    return any(
-        isinstance(item, dict)
-        and is_stop_command(str(item.get("text") or ""))
-        for item in messages
+def _stop_requested(messages: list[dict]) -> dict | None:
+    return next(
+        (
+            item
+            for item in reversed(messages)
+            if isinstance(item, dict)
+            and not str(item.get("text") or "").startswith("Scribe est présent")
+            and "scribe" not in _plain(chat_sender(item))
+            and is_stop_command(str(item.get("text") or ""))
+        ),
+        None,
     )
+
+
+def _plain(value: str | None) -> str:
+    normalized = unicodedata.normalize("NFKD", str(value or "").casefold())
+    return re.sub(r"[^a-z0-9@.]+", " ", normalized).strip()
+
+
+def chat_sender(message: dict) -> str:
+    """Lit les formes de message observées sans conserver le contenu du chat."""
+    for key in ("sender_name", "display_name", "author_name", "sender", "author", "from"):
+        value = message.get(key)
+        if isinstance(value, dict):
+            value = next(
+                (value.get(name) for name in ("display_name", "name", "email") if value.get(name)),
+                "",
+            )
+        if value:
+            return str(value)
+    return ""
+
+
+def _participant_from_hint(
+    participants: list[ParticipantConsent], hint: str | None
+) -> ParticipantConsent | None:
+    wanted = _plain(hint)
+    if not wanted:
+        return None
+    matches = [
+        item
+        for item in participants
+        if wanted in {_plain(item.name), _plain(item.email)}
+    ]
+    return matches[0] if len(matches) == 1 else None
 
 
 def _welcome_message() -> str:
@@ -116,6 +164,79 @@ def _erase_after_chat_stop(meeting: RemoteMeeting) -> None:
     meeting.error = "Arrêt demandé dans le chat. Les données de la réunion ont été effacées."
 
 
+def _preserve_other_participants(
+    meeting: RemoteMeeting,
+    withdrawn: ParticipantConsent,
+    participants: list[ParticipantConsent],
+) -> bool:
+    """Retire la personne et tout passage non attribué, puis garde les autres preuves."""
+    active_names = {
+        _plain(item.name): item.name
+        for item in participants
+        if item.id != withdrawn.id and item.consented_at and not item.withdrawn_at
+    }
+    kept = []
+    for segment in json.loads(meeting.segments_json or "[]"):
+        name = active_names.get(_plain(segment.get("speaker")))
+        if name:
+            kept.append({**segment, "speaker": name})
+    meeting.segments_json = json.dumps(kept, ensure_ascii=False)
+    meeting.transcript = "\n".join(
+        f"{item['speaker']}: {item['text']}" for item in kept
+    ) or None
+    meeting.duration_seconds = int(max((item.get("end", 0) for item in kept), default=0))
+    meeting.report_json = None
+    return bool(kept)
+
+
+def stop_for_participant(meeting_id: str, participant_hint: str | None = None) -> str:
+    """Arrête la capture, retire le demandeur et conserve seulement les autres voix prouvées."""
+    should_reanalyze = False
+    result = "erased"
+    with Session(engine) as db:
+        meeting = db.get(RemoteMeeting, meeting_id)
+        if not meeting:
+            return "missing"
+        participants = list(
+            db.exec(
+                select(ParticipantConsent).where(
+                    ParticipantConsent.session_id == meeting.consent_session_id
+                )
+            )
+        )
+        withdrawn = _participant_from_hint(participants, participant_hint)
+        with suppress(vexa.VexaError):
+            vexa.stop_bot(meeting.platform, meeting.native_id)
+        _purge_provider(meeting)
+        meeting.ended_at = utc_now()
+        if withdrawn:
+            withdrawn.withdrawn_at = withdrawn.withdrawn_at or utc_now()
+            db.add(withdrawn)
+            should_reanalyze = _preserve_other_participants(meeting, withdrawn, participants)
+            meeting.status = (
+                RemoteMeetingStatus.FINALIZING if should_reanalyze else RemoteMeetingStatus.STOPPED
+            )
+            meeting.error = (
+                f"Capture arrêtée après le retrait de {withdrawn.name}. "
+                "Ses passages et tous les passages non attribués ont été supprimés."
+            )
+            result = "participant"
+        else:
+            meeting.status = RemoteMeetingStatus.STOPPED
+            meeting.transcript = None
+            meeting.segments_json = "[]"
+            meeting.report_json = None
+            meeting.error = (
+                "Capture arrêtée. L'auteur de la demande n'a pas pu être identifié avec "
+                "certitude : toutes les données ont été effacées par sécurité."
+            )
+        db.add(meeting)
+        db.commit()
+    if should_reanalyze:
+        reanalyze_remote_meeting(meeting_id)
+    return result
+
+
 def sync_remote_meeting(meeting_id: str) -> bool:
     """Met à jour le direct et indique si l'analyse finale doit démarrer."""
     with Session(engine) as db:
@@ -132,10 +253,10 @@ def sync_remote_meeting(meeting_id: str) -> bool:
         if provider_status in LIVE_STATES:
             try:
                 messages = vexa.get_chat(meeting.platform, meeting.native_id)
-                if _stop_requested(messages):
-                    _erase_after_chat_stop(meeting)
-                    db.add(meeting)
+                if request := _stop_requested(messages):
+                    sender = chat_sender(request)
                     db.commit()
+                    stop_for_participant(meeting.id, sender)
                     return False
                 if not meeting.welcome_posted_at:
                     vexa.send_chat(meeting.platform, meeting.native_id, _welcome_message())
@@ -202,7 +323,7 @@ def finalize_remote_meeting(meeting_id: str) -> None:
                 )
             )
         )
-        names = [item.name for item in participants if item.name]
+        names = [item.name for item in participants if item.name and not item.withdrawn_at]
         try:
             report = generate_summary(meeting.transcript, segments, names)
         except SummaryError as exc:
@@ -239,7 +360,7 @@ def finalize_remote_meeting(meeting_id: str) -> None:
                 time.sleep(1)
 
         report_data = report.model_dump()
-        artifacts = {"provider": meeting.platform, "participants": [], "recordings": []}
+        artifacts = {"provider": meeting.platform, "participants": []}
         with suppress(Exception):
             artifacts = google_meet_context(meeting, db)
         confirm_speaker_names(report_data, artifacts.get("participants", []))
@@ -292,7 +413,7 @@ def reanalyze_remote_meeting(meeting_id: str) -> None:
             report = generate_summary(
                 meeting.transcript,
                 segments,
-                [item.name for item in participants if item.name],
+                [item.name for item in participants if item.name and not item.withdrawn_at],
             )
         except SummaryError as exc:
             meeting.status = RemoteMeetingStatus.FAILED
@@ -302,7 +423,7 @@ def reanalyze_remote_meeting(meeting_id: str) -> None:
             report_data = report.model_dump()
             report_data["provider_artifacts"] = previous.get(
                 "provider_artifacts",
-                {"provider": meeting.platform, "participants": [], "recordings": []},
+                {"provider": meeting.platform, "participants": []},
             )
             confirm_speaker_names(
                 report_data,
