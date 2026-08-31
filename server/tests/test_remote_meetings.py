@@ -64,7 +64,7 @@ def report() -> MeetingSummary:
 def test_remote_meeting_live_and_final_report(monkeypatch):
     tokens = []
     monkeypatch.setattr("app.config.settings.smtp_host", "smtp.example.com")
-    monkeypatch.setattr("app.config.settings.smtp_from_email", "scribe@example.com")
+    monkeypatch.setattr("app.config.settings.smtp_from_email", "klaria@example.com")
     monkeypatch.setattr("app.config.settings.vexa_api_key", "vexa-test")
     monkeypatch.setattr(
         "app.consent_routes.send_consent_email",
@@ -137,7 +137,7 @@ def test_remote_meeting_live_and_final_report(monkeypatch):
 def test_delete_remote_meeting_erases_local_archive(monkeypatch):
     invitations = []
     monkeypatch.setattr("app.config.settings.smtp_host", "smtp.example.com")
-    monkeypatch.setattr("app.config.settings.smtp_from_email", "scribe@example.com")
+    monkeypatch.setattr("app.config.settings.smtp_from_email", "klaria@example.com")
     monkeypatch.setattr("app.config.settings.vexa_api_key", "vexa-test")
     monkeypatch.setattr(
         "app.consent_routes.send_consent_email",

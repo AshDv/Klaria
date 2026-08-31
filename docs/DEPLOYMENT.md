@@ -14,8 +14,8 @@ postgresql+psycopg://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require
 L’image est définie par `server/Dockerfile` et écoute automatiquement la variable `PORT`.
 
 ```powershell
-docker build -t rg.fr-par.scw.cloud/VOTRE_NAMESPACE/scribe-api:latest .\server
-docker push rg.fr-par.scw.cloud/VOTRE_NAMESPACE/scribe-api:latest
+docker build -t rg.fr-par.scw.cloud/VOTRE_NAMESPACE/klaria-api:latest .\server
+docker push rg.fr-par.scw.cloud/VOTRE_NAMESPACE/klaria-api:latest
 ```
 
 Dans Scaleway Serverless Containers, déployer cette image, choisir le port exposé par
@@ -80,7 +80,7 @@ explicitement si elle doit appeler l’API.
 - une invitation arrive sur une adresse de test ;
 - le bot attend les accords et apparaît sous un nom visible ;
 - l’hôte admet le bot et le transcript live s’affiche ;
-- `STOP SCRIBE` dans le chat arrête le bot et efface le direct ;
+- `STOP KLARIA` dans le chat arrête le bot et efface le direct ;
 - le récapitulatif est publié dans le chat avant le départ du bot ;
 - la fin produit le rapport et confirme la purge Vexa ;
 - l’export et la suppression du compte fonctionnent ;

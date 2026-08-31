@@ -10,7 +10,7 @@ export function NewMeeting({ onRemoteCreated, onRecordingCreated }) {
   return <section className="page">
     <header className="page-header new-meeting-header"><div><span className="eyebrow">Nouvelle réunion</span><h1>Comment échangez-vous ?</h1><p>Choisissez le mode adapté, le résultat reste le même : clair et exploitable.</p></div></header>
     <div className="mode-switch" role="tablist">
-      <button className={mode === "bot" ? "active" : ""} onClick={() => setMode("bot")}><span className="mode-icon">S</span><strong>Meet ou Teams</strong><small>Scribe rejoint la réunion</small></button>
+      <button className={mode === "bot" ? "active" : ""} onClick={() => setMode("bot")}><span className="mode-icon">S</span><strong>Meet ou Teams</strong><small>Klaria rejoint la réunion</small></button>
       <button className={mode === "room" ? "active" : ""} onClick={() => setMode("room")}><span className="mode-icon room">●</span><strong>En présentiel</strong><small>Utiliser le dictaphone</small></button>
     </div>
     {mode === "bot" ? <BotFlow onCreated={onRemoteCreated}/> : <MeetingWorkflow onCreated={onRecordingCreated}/>}
@@ -124,7 +124,7 @@ function BotSetup({ onCreated }) {
 
   return <div className="launch-grid">
     <form className="content-card bot-form" onSubmit={create}>
-      <div className="form-intro"><span className="platform-pair"><i><PlatformIcon platform="google_meet" decorative/></i><i><PlatformIcon platform="teams" decorative/></i></span><div><h2>Inviter l’assistant</h2><p>Scribe apparaîtra comme un participant visible.</p></div></div>
+      <div className="form-intro"><span className="platform-pair"><i><PlatformIcon platform="google_meet" decorative/></i><i><PlatformIcon platform="teams" decorative/></i></span><div><h2>Inviter l’assistant</h2><p>Klaria apparaîtra comme un participant visible.</p></div></div>
       {!manual && !selectedEvent && <div className="calendar-picker">
         <label className="field"><span>Choisir une réunion détectée</span><input type="search" value={eventQuery} onChange={(event) => setEventQuery(event.target.value)} placeholder="Rechercher par titre ou participant"/></label>
         <div className="calendar-picker-list">{calendarEvents === null
@@ -138,7 +138,7 @@ function BotSetup({ onCreated }) {
       {selectedEvent && !manual && <button type="button" className="text-button inline" onClick={() => setSelectedEvent(null)}>Choisir une autre réunion</button>}
       <button type="button" className="text-button inline manual-toggle" onClick={() => { setManual(!manual); setSelectedEvent(null); }}>{manual ? "Revenir à l’agenda" : "Saisie manuelle de secours"}</button>
       {manual && <>
-      <label className="calendar-drop"><input type="file" accept=".ics,text/calendar" onChange={importInvitation}/><strong>Importer une invitation calendrier</strong><span>Scribe lit automatiquement le lien, l’heure et les invités du fichier .ics.</span></label>
+      <label className="calendar-drop"><input type="file" accept=".ics,text/calendar" onChange={importInvitation}/><strong>Importer une invitation calendrier</strong><span>Klaria lit automatiquement le lien, l’heure et les invités du fichier .ics.</span></label>
       <label className="field"><span>Lien Google Meet ou Microsoft Teams</span><input type="url" value={meetingUrl} onChange={(event) => setMeetingUrl(event.target.value)} placeholder="https://meet.google.com/abc-defg-hij" required/></label>
       {needsTeamsDetails && <div className="calendar-import">
         <label className="field"><span>Identifiant de réunion Teams</span><input inputMode="numeric" value={teamsMeetingId} onChange={(event) => setTeamsMeetingId(event.target.value)} placeholder="123 456 789 012" required/></label>
@@ -156,11 +156,11 @@ function BotSetup({ onCreated }) {
       </>}
       <label className="consent replay-consent"><input type="checkbox" checked={keepReplay} onChange={(event) => setKeepReplay(event.target.checked)}/><span><strong>Conserver un replay audio</strong><small>Optionnel et désactivé par défaut. Chaque participant verra cette durée avant d’accepter.</small></span></label>
       {keepReplay && <label className="field compact-field"><span>Suppression automatique du média</span><select value={replayDays} onChange={(event) => setReplayDays(Number(event.target.value))}><option value="1">Après 24 heures</option><option value="7">Après 7 jours</option><option value="14">Après 14 jours</option><option value="30">Après 30 jours</option></select></label>}
-      <p className="privacy-hint">Chaque personne reçoit un lien individuel. Le bot reste bloqué jusqu’au dernier accord. Scribe ne capture ni la vidéo ni le partage d’écran.</p>
+      <p className="privacy-hint">Chaque personne reçoit un lien individuel. Le bot reste bloqué jusqu’au dernier accord. Klaria ne capture ni la vidéo ni le partage d’écran.</p>
       {error && <div className="alert error">{error}</div>}
       <button className="primary-button compact" disabled={busy || (!manual && !selectedEvent)}>{busy ? "Préparation…" : "Demander les accords"}</button>
     </form>
-    <aside className="launch-aside"><span className="card-label">Déroulé</span><Step number="01" title="Accords" text="Chacun confirme par e-mail."/><Step number="02" title="Admission" text="L’hôte accepte Scribe dans la réunion."/><Step number="03" title="Compte rendu" text="Le direct devient décisions et actions."/></aside>
+    <aside className="launch-aside"><span className="card-label">Déroulé</span><Step number="01" title="Accords" text="Chacun confirme par e-mail."/><Step number="02" title="Admission" text="L’hôte accepte Klaria dans la réunion."/><Step number="03" title="Compte rendu" text="Le direct devient décisions et actions."/></aside>
   </div>;
 }
 
@@ -176,7 +176,7 @@ function BotConsent({ setup, onCreated }) {
   }, [meeting.id]);
 
   async function inviteBot() {
-    if (!notice) { setError("Confirmez que tous les participants voient que Scribe va rejoindre."); return; }
+    if (!notice) { setError("Confirmez que tous les participants voient que Klaria va rejoindre."); return; }
     setBusy(true); setError("");
     try {
       await api.startConsentSession(meeting.id);
@@ -197,7 +197,7 @@ function BotConsent({ setup, onCreated }) {
       <label className="consent"><input type="checkbox" checked={notice} onChange={(event) => setNotice(event.target.checked)}/><span><strong>La présence du bot sera visible et annoncée</strong><small>Chaque participant peut retirer son accord à tout moment.</small></span></label>
       <div className="consent-mode"><strong>{meeting.media_recording_enabled ? "Replay audio activé" : "Mode sans replay audio"}</strong><span>{meeting.media_recording_enabled ? `Suppression automatique après ${meeting.media_retention_days} jour${meeting.media_retention_days > 1 ? "s" : ""}.` : "Seul le texte utile sera conservé."}</span></div>
       {error && <div className="alert error">{error}</div>}
-      <button className="primary-button compact" onClick={inviteBot} disabled={!meeting.all_consented || busy}>{busy ? "Connexion de Scribe…" : "Inviter Scribe maintenant"}</button>
+      <button className="primary-button compact" onClick={inviteBot} disabled={!meeting.all_consented || busy}>{busy ? "Connexion de Klaria…" : "Inviter Klaria maintenant"}</button>
     </div>
   </div>;
 }

@@ -28,10 +28,10 @@ utilise Vexa Cloud ; une production avec exigence de localisation doit pointer
 5. L’organisateur confirme l’annonce visible dans la réunion.
 6. Vexa rejoint Meet ou Teams et renvoie les segments avec intervenant et horodatage.
 7. Le backend relaie le WebSocket Vexa au frontend sans exposer la clé API ; une synchronisation REST sert de secours.
-8. Le bot surveille la commande « STOP SCRIBE » sans conserver le chat.
+8. Le bot surveille la commande « STOP KLARIA » sans conserver le chat.
 9. À la fin, Mistral Medium 3.5 produit un objet JSON validé par Pydantic.
-10. Le bot publie un récapitulatif et le lien Scribe dans le chat, puis quitte la réunion.
-11. Scribe garde le rapport et demande la purge de la réunion temporaire chez Vexa.
+10. Le bot publie un récapitulatif et le lien Klaria dans le chat, puis quitte la réunion.
+11. Klaria garde le rapport et demande la purge de la réunion temporaire chez Vexa.
 12. Le navigateur lit le brief audio avec deux voix locales ; aucun fichier audio n’est créé.
 
 Le backend utilise par défaut `https://api.eu.mistral.ai/v1`. Les modèles réellement

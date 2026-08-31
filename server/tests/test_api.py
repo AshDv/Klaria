@@ -143,7 +143,7 @@ def test_recordings_are_private_and_deletable(monkeypatch):
 def test_consent_blocks_start_and_withdrawal_stops(monkeypatch):
     tokens = []
     monkeypatch.setattr("app.config.settings.smtp_host", "smtp.example.com")
-    monkeypatch.setattr("app.config.settings.smtp_from_email", "scribe@example.com")
+    monkeypatch.setattr("app.config.settings.smtp_from_email", "klaria@example.com")
     monkeypatch.setattr(
         "app.consent_routes.send_consent_email",
         lambda _name, _email, _title, token, *_args: tokens.append(token),
@@ -188,7 +188,7 @@ def test_google_sso_reports_missing_configuration():
 
 def test_account_deletion_with_a_consent_session(monkeypatch):
     monkeypatch.setattr("app.config.settings.smtp_host", "smtp.example.com")
-    monkeypatch.setattr("app.config.settings.smtp_from_email", "scribe@example.com")
+    monkeypatch.setattr("app.config.settings.smtp_from_email", "klaria@example.com")
     monkeypatch.setattr("app.consent_routes.send_consent_email", lambda *args: None)
     with TestClient(app) as client:
         token = register(client, "delete@example.com")
@@ -238,7 +238,7 @@ def test_account_deletion_with_a_consent_session(monkeypatch):
 def test_participant_erasure_deletes_linked_recording(monkeypatch):
     consent_tokens = []
     monkeypatch.setattr("app.config.settings.smtp_host", "smtp.example.com")
-    monkeypatch.setattr("app.config.settings.smtp_from_email", "scribe@example.com")
+    monkeypatch.setattr("app.config.settings.smtp_from_email", "klaria@example.com")
     monkeypatch.setattr(
         "app.consent_routes.send_consent_email",
         lambda _name, _email, _title, token, *_args: consent_tokens.append(token),

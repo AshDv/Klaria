@@ -191,7 +191,7 @@ class RemoteMeeting(SQLModel, table=True):
     platform: str = Field(index=True)
     native_id: str = Field(index=True)
     language: str = "fr"
-    bot_name: str = "Scribe — prise de notes"
+    bot_name: str = "Klaria — prise de notes"
     status: RemoteMeetingStatus = Field(default=RemoteMeetingStatus.JOINING, index=True)
     provider_status: str | None = None
     created_at: datetime = Field(default_factory=utc_now)

@@ -2,13 +2,13 @@
 
 Date de préparation : 22 juillet 2026
 Échéance Jira : 26 juillet 2026
-Dépôt final : `https://github.com/AshDv/ScribeProject`
+Dépôt final : `https://github.com/AshDv/KlariaProject`
 
 ## 1. Situation de départ
 
 Le dépôt final contient uniquement un commit initial créé par Ashwin. Le dossier
-`C:\Users\pc\Downloads\scribe-saas` pointe encore vers
-`YanisZedira/scribe_saas` et contient un historique ancien ainsi que des changements
+`C:\Users\pc\Downloads\klaria-saas` pointe encore vers
+`YanisZedira/klaria_saas` et contient un historique ancien ainsi que des changements
 non commités.
 
 Il ne faut donc ni changer son remote puis pousser, ni committer tout le dossier en une
@@ -23,8 +23,8 @@ un résultat puis modifier l’auteur Git ne constitue pas une contribution rée
 
 ```powershell
 Set-Location C:\Users\pc\Downloads
-git clone https://github.com/AshDv/ScribeProject.git ScribeProject
-Set-Location ScribeProject
+git clone https://github.com/AshDv/KlariaProject.git KlariaProject
+Set-Location KlariaProject
 git switch -c develop
 git push -u origin develop
 ```
@@ -118,7 +118,7 @@ ou `push --force-with-lease` n’est utilisé dans ce projet.
 
 ### S1-04 — Mehdi
 
-1. `feat(ui): add the responsive Scribe shell`
+1. `feat(ui): add the responsive Klaria shell`
 2. `feat(auth-ui): add account forms`
 3. `feat(auth-ui): add SSO callback and private navigation`
 

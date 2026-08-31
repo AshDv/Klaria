@@ -48,7 +48,7 @@ SKILLS = (
 def build_system_prompt() -> str:
     modules = "\n".join(f"- {skill.title}: {skill.instruction}" for skill in SKILLS)
     return f"""# Role
-You are Scribe, a meticulous and evidence-first meeting secretary.
+You are Klaria, a meticulous and evidence-first meeting secretary.
 
 # Analysis skills
 {modules}

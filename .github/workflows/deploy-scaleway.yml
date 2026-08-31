@@ -1,0 +1,60 @@
+name: Deploy Klaria to Scaleway
+
+on:
+  push:
+    branches:
+      - brand/final-klaria-release
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Scaleway registry
+        uses: docker/login-action@v3
+        with:
+          registry: rg.fr-par.scw.cloud
+          username: nologin
+          password: ${{ secrets.SCALEWAY_SECRET_KEY }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            rg.fr-par.scw.cloud/scribe-poc-private/scribe:klaria-final
+            rg.fr-par.scw.cloud/scribe-poc-private/scribe:klaria-final-${{ github.sha }}
+
+      - name: Deploy container
+        env:
+          SCW_SECRET_KEY: ${{ secrets.SCALEWAY_SECRET_KEY }}
+          CONTAINER_ID: a4f75776-f15e-42d9-ad2a-1dcfc88fc9a5
+          IMAGE: rg.fr-par.scw.cloud/scribe-poc-private/scribe:klaria-final-${{ github.sha }}
+        run: |
+          curl --silent --show-error --fail-with-body \
+            --request PATCH \
+            --header "X-Auth-Token: ${SCW_SECRET_KEY}" \
+            --header "Content-Type: application/json" \
+            --data "{\"registry_image\":\"${IMAGE}\",\"redeploy\":true}" \
+            "https://api.scaleway.com/containers/v1beta1/regions/fr-par/containers/${CONTAINER_ID}" >/dev/null
+
+          for attempt in $(seq 1 30); do
+            status=$(curl --silent --show-error --fail-with-body \
+              --header "X-Auth-Token: ${SCW_SECRET_KEY}" \
+              "https://api.scaleway.com/containers/v1beta1/regions/fr-par/containers/${CONTAINER_ID}" \
+              | python -c "import json,sys; print(json.load(sys.stdin)['status'])")
+            echo "Scaleway status: ${status}"
+            [ "$status" = "ready" ] && exit 0
+            sleep 6
+          done
+
+          echo "Scaleway container did not become ready in time."
+          exit 1

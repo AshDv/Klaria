@@ -4,7 +4,7 @@ $serverPath = Join-Path $projectRoot "server"
 $webPath = Join-Path $projectRoot "web"
 $pythonPath = Join-Path $serverPath ".venv\Scripts\python.exe"
 
-Write-Host "Préparation du backend Scribe..." -ForegroundColor Cyan
+Write-Host "Préparation du backend Klaria..." -ForegroundColor Cyan
 if (-not (Test-Path $pythonPath)) {
   python -m venv (Join-Path $serverPath ".venv")
 }
@@ -19,10 +19,10 @@ Push-Location $webPath
 npm install
 Pop-Location
 
-Write-Host "Lancement de Scribe..." -ForegroundColor Cyan
+Write-Host "Lancement de Klaria..." -ForegroundColor Cyan
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$serverPath'; .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$webPath'; npm run dev"
 
 Start-Sleep -Seconds 5
 Start-Process "http://localhost:5174"
-Write-Host "Scribe : http://localhost:5174" -ForegroundColor Green
+Write-Host "Klaria : http://localhost:5174" -ForegroundColor Green

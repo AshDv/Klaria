@@ -1,6 +1,6 @@
-# Scribe
+# Klaria
 
-Scribe rejoint une réunion Google Meet ou Microsoft Teams, produit une transcription
+Klaria rejoint une réunion Google Meet ou Microsoft Teams, produit une transcription
 attribuée aux intervenants et transforme l’échange en compte rendu, décisions, actions,
 questions, risques et brief audio à deux voix. Le dictaphone présentiel reste disponible.
 
@@ -12,7 +12,7 @@ questions, risques et brief audio à deux voix. Le dictaphone présentiel reste 
 - transcription en direct avec attribution des intervenants ;
 - WebSocket temps réel avec repli automatique sur la synchronisation REST ;
 - saisie des participants avant l’envoi de leurs demandes de consentement ;
-- commande `STOP SCRIBE` dans le chat avec arrêt et effacement immédiats ;
+- commande `STOP KLARIA` dans le chat avec arrêt et effacement immédiats ;
 - Mistral Medium 3.5 avec sortie JSON validée et preuves par segment ;
 - mentions directes avec auteur, contexte et passages justificatifs ;
 - distinction entre décisions confirmées, proposées et reportées ;
@@ -20,7 +20,7 @@ questions, risques et brief audio à deux voix. Le dictaphone présentiel reste 
 - dashboard, bibliothèque, vue décisions, vue actions et transcription ;
 - brief audio à deux voix généré localement par le navigateur ;
 - arrêt et purge si un participant retire son consentement ;
-- publication du récapitulatif et du lien Scribe dans le chat avant le départ du bot ;
+- publication du récapitulatif et du lien Klaria dans le chat avant le départ du bot ;
 - export, suppression du compte et expiration des résultats.
 
 ## Stack
@@ -47,7 +47,7 @@ powershell -ExecutionPolicy Bypass -File .\start.ps1
 - API : `http://localhost:8000`
 - Documentation API : `http://localhost:8000/docs`
 
-Pour activer le bot en ligne, `VEXA_API_KEY` est obligatoire. Sans SMTP, Scribe ne
+Pour activer le bot en ligne, `VEXA_API_KEY` est obligatoire. Sans SMTP, Klaria ne
 crée pas de session de consentement et n’envoie donc aucun bot.
 
 Pour Teams, Vexa exige l’identifiant numérique et le code secret présents dans

@@ -1,12 +1,12 @@
 # Livraison équipe — Sprint 2
 
-Ce guide transfère le Sprint 2 vers `AshDv/ScribeProject` sans copier de secret et sans mélanger les contributions. Une branche est créée, relue et fusionnée avant de passer à la suivante.
+Ce guide transfère le Sprint 2 vers `AshDv/KlariaProject` sans copier de secret et sans mélanger les contributions. Une branche est créée, relue et fusionnée avant de passer à la suivante.
 
 ## Règles communes
 
-- Décompresser `scribe-s2-delivery-final.zip` dans `Downloads/scribe-s2-delivery-final`.
-- Travailler dans un clone propre de `https://github.com/AshDv/ScribeProject.git`.
-- Ne jamais copier `server/.env`, `scribe.db`, `node_modules` ou `.venv`.
+- Décompresser `klaria-s2-delivery-final.zip` dans `Downloads/klaria-s2-delivery-final`.
+- Travailler dans un clone propre de `https://github.com/AshDv/KlariaProject.git`.
+- Ne jamais copier `server/.env`, `klaria.db`, `node_modules` ou `.venv`.
 - Relire les fichiers et lancer les tests avant de valider un commit.
 - Une autre personne relit la PR. La branche est fusionnée dans `develop`, puis la personne suivante commence.
 - Utiliser une fusion normale, sans modifier les auteurs des commits.
@@ -15,22 +15,22 @@ Ce guide transfère le Sprint 2 vers `AshDv/ScribeProject` sans copier de secret
 
 ```powershell
 cd "$HOME\Downloads"
-git clone https://github.com/AshDv/ScribeProject.git ScribeProject-s2
-cd .\ScribeProject-s2
+git clone https://github.com/AshDv/KlariaProject.git KlariaProject-s2
+cd .\KlariaProject-s2
 git switch develop
 git pull --ff-only origin develop
-$Source = "$HOME\Downloads\scribe-s2-delivery-final"
+$Source = "$HOME\Downloads\klaria-s2-delivery-final"
 ```
 
 ## Préparation macOS
 
 ```bash
 cd ~/Downloads
-git clone https://github.com/AshDv/ScribeProject.git ScribeProject-s2
-cd ScribeProject-s2
+git clone https://github.com/AshDv/KlariaProject.git KlariaProject-s2
+cd KlariaProject-s2
 git switch develop
 git pull --ff-only origin develop
-SOURCE="$HOME/Downloads/scribe-s2-delivery-final"
+SOURCE="$HOME/Downloads/klaria-s2-delivery-final"
 ```
 
 Pour chaque étape : remplacer uniquement les fichiers annoncés, vérifier le diff, faire les commits indiqués, pousser la branche, puis ouvrir la PR vers `develop`.

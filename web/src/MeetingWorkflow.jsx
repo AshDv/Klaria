@@ -51,7 +51,7 @@ function MeetingSetup({ onCreated }) {
         <input aria-label={`E-mail du participant ${index + 1}`} type="email" placeholder="E-mail" value={participant.email} onChange={(event) => update(index, "email", event.target.value)} required />
         {participants.length > 1 && <button type="button" className="icon-button danger" aria-label={`Retirer le participant ${index + 1}`} onClick={() => setParticipants(participants.filter((_, position) => position !== index))}>×</button>}
       </div>)}
-      <p className="privacy-hint">Ajoutez toutes les personnes dont la voix peut être captée, vous compris. Scribe utilise ces adresses uniquement pour envoyer et prouver le consentement.</p>
+      <p className="privacy-hint">Ajoutez toutes les personnes dont la voix peut être captée, vous compris. Klaria utilise ces adresses uniquement pour envoyer et prouver le consentement.</p>
       {error && <div className="alert error">{error}</div>}
       <button className="primary-button compact" disabled={busy}>{busy ? "Envoi…" : "Envoyer les demandes de consentement"}</button>
     </form>
@@ -70,7 +70,7 @@ function ConsentStatus({ meeting, onChange }) {
 
   async function start() {
     if (!notice) {
-      setError("Annoncez la présence de Scribe aux personnes dans la salle.");
+      setError("Annoncez la présence de Klaria aux personnes dans la salle.");
       return;
     }
     try {
@@ -87,7 +87,7 @@ function ConsentStatus({ meeting, onChange }) {
         <div><strong>{participant.name}</strong><small>{participant.email}</small></div>
         <span className={`status ${participant.consented_at && !participant.withdrawn_at ? "completed" : "uploaded"}`}>{participant.withdrawn_at ? "Retiré" : participant.consented_at ? "Accepté" : "En attente"}</span>
       </div>)}
-      <label className="consent"><input type="checkbox" checked={notice} onChange={(event) => setNotice(event.target.checked)} /><span><strong>J’annonce Scribe à toutes les personnes présentes</strong><small>Je leur rappelle que l’enregistrement peut être arrêté immédiatement.</small></span></label>
+      <label className="consent"><input type="checkbox" checked={notice} onChange={(event) => setNotice(event.target.checked)} /><span><strong>J’annonce Klaria à toutes les personnes présentes</strong><small>Je leur rappelle que l’enregistrement peut être arrêté immédiatement.</small></span></label>
       {error && <div className="alert error">{error}</div>}
       <button className="primary-button compact" disabled={!meeting.all_consented} onClick={start}>Ouvrir le dictaphone</button>
     </div>
