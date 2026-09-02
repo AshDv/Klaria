@@ -4,6 +4,7 @@ import asyncio
 import json
 import re
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import httpx
 from sqlmodel import Session, select
@@ -49,6 +50,27 @@ def parse_datetime(value: str | None) -> datetime | None:
         return None
 
 
+def parse_provider_datetime(value: str | None, timezone: str | None = None) -> datetime | None:
+    parsed = parse_datetime(value)
+    if not parsed:
+        return None
+    if parsed.tzinfo:
+        return parsed.astimezone(UTC)
+    provider_zone = {
+        "Romance Standard Time": "Europe/Paris",
+        "Central European Standard Time": "Europe/Paris",
+    }.get(timezone or "", timezone or "UTC")
+    try:
+        zone = ZoneInfo(provider_zone)
+    except Exception:
+        zone = UTC
+    return parsed.replace(tzinfo=zone).astimezone(UTC)
+
+
+def paris_calendar_time(value: datetime) -> str:
+    return aware(value).astimezone(ZoneInfo("Europe/Paris")).replace(tzinfo=None).isoformat()
+
+
 def meeting_url(*values: str | None) -> str | None:
     for value in values:
         if match := MEETING_URL.search(value or ""):
@@ -83,8 +105,8 @@ def create_follow_up(
             params={"conferenceDataVersion": 1, "sendUpdates": "all"},
             json={
                 "summary": title,
-                "start": {"dateTime": aware(starts_at).isoformat(), "timeZone": "Europe/Paris"},
-                "end": {"dateTime": aware(ends_at).isoformat(), "timeZone": "Europe/Paris"},
+                "start": {"dateTime": paris_calendar_time(starts_at), "timeZone": "Europe/Paris"},
+                "end": {"dateTime": paris_calendar_time(ends_at), "timeZone": "Europe/Paris"},
                 "attendees": [{"email": item["email"]} for item in attendees],
                 "conferenceData": {
                     "createRequest": {
@@ -100,8 +122,8 @@ def create_follow_up(
         headers={"Authorization": f"Bearer {token}"},
         json={
             "subject": title,
-            "start": {"dateTime": aware(starts_at).isoformat(), "timeZone": "UTC"},
-            "end": {"dateTime": aware(ends_at).isoformat(), "timeZone": "UTC"},
+            "start": {"dateTime": paris_calendar_time(starts_at), "timeZone": "Europe/Paris"},
+            "end": {"dateTime": paris_calendar_time(ends_at), "timeZone": "Europe/Paris"},
             "attendees": [
                 {
                     "emailAddress": {"address": item["email"], "name": item.get("name")},
@@ -202,7 +224,7 @@ def _microsoft_events(connection: CalendarConnection, db: Session) -> list[dict]
         "https://graph.microsoft.com/v1.0/me/calendarView",
         headers={
             "Authorization": f"Bearer {token}",
-            "Prefer": 'outlook.timezone="UTC"',
+            "Prefer": 'outlook.timezone="Europe/Paris"',
         },
         params=params,
     )
@@ -216,7 +238,9 @@ def _google_item(item: dict, owner_email: str) -> dict | None:
         item.get("location"),
         item.get("description"),
     )
-    starts = parse_datetime((item.get("start") or {}).get("dateTime"))
+    start = item.get("start") or {}
+    end = item.get("end") or {}
+    starts = parse_provider_datetime(start.get("dateTime"), start.get("timeZone"))
     if not url or not starts:
         return None
     attendees = [
@@ -234,7 +258,7 @@ def _google_item(item: dict, owner_email: str) -> dict | None:
         "provider_event_id": item["id"],
         "title": item.get("summary") or "Réunion sans titre",
         "starts_at": starts,
-        "ends_at": parse_datetime((item.get("end") or {}).get("dateTime")),
+        "ends_at": parse_provider_datetime(end.get("dateTime"), end.get("timeZone")),
         "meeting_url": url,
         "organizer_email": (item.get("organizer") or {}).get("email"),
         "attendees": attendees,
@@ -250,7 +274,9 @@ def _microsoft_item(item: dict, owner_email: str) -> dict | None:
         (item.get("location") or {}).get("displayName"),
         item.get("bodyPreview"),
     )
-    starts = parse_datetime((item.get("start") or {}).get("dateTime"))
+    start = item.get("start") or {}
+    end = item.get("end") or {}
+    starts = parse_provider_datetime(start.get("dateTime"), start.get("timeZone"))
     if not url or not starts:
         return None
     attendees = []
@@ -269,7 +295,7 @@ def _microsoft_item(item: dict, owner_email: str) -> dict | None:
         "provider_event_id": item["id"],
         "title": item.get("subject") or "Réunion sans titre",
         "starts_at": starts,
-        "ends_at": parse_datetime((item.get("end") or {}).get("dateTime")),
+        "ends_at": parse_provider_datetime(end.get("dateTime"), end.get("timeZone")),
         "meeting_url": url,
         "organizer_email": organizer.get("address"),
         "attendees": attendees,

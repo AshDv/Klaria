@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-this-secret-before-production"
     database_url: str = "sqlite:///./klaria.db"
     database_fallback_url: str = "sqlite:////tmp/klaria.db"
-    allow_database_fallback: bool = True
+    allow_database_fallback: bool = False
     cors_origins: str = "http://localhost:5174"
     frontend_url: str = "http://localhost:5174"
     api_public_url: str = "http://localhost:8000"

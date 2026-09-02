@@ -10,7 +10,7 @@ export function NewMeeting({ onRemoteCreated, onRecordingCreated }) {
   return <section className="page">
     <header className="page-header new-meeting-header"><div><span className="eyebrow">Nouvelle réunion</span><h1>Comment échangez-vous ?</h1><p>Choisissez le mode adapté, le résultat reste le même : clair et exploitable.</p></div></header>
     <div className="mode-switch" role="tablist">
-      <button className={mode === "bot" ? "active" : ""} onClick={() => setMode("bot")}><span className="mode-icon">S</span><strong>Meet ou Teams</strong><small>Klaria rejoint la réunion</small></button>
+      <button className={mode === "bot" ? "active" : ""} onClick={() => setMode("bot")}><span className="mode-icon">K</span><strong>Meet ou Teams</strong><small>Klaria rejoint la réunion</small></button>
       <button className={mode === "room" ? "active" : ""} onClick={() => setMode("room")}><span className="mode-icon room">●</span><strong>En présentiel</strong><small>Utiliser le dictaphone</small></button>
     </div>
     {mode === "bot" ? <BotFlow onCreated={onRemoteCreated}/> : <MeetingWorkflow onCreated={onRecordingCreated}/>}

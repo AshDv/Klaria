@@ -95,6 +95,10 @@ export const api = {
   eraseConsentData: (token) => request(`/api/public/consents/${token}/data`, {
     method: "DELETE",
   }),
+  getPublicReport: (token) => request(`/api/public/reports/${token}`),
+  erasePublicReportData: (token) => request(`/api/public/reports/${token}/data`, {
+    method: "DELETE",
+  }),
   createRecording: (title, audio, consent, consentSessionId) => {
     const form = new FormData();
     form.set("title", title);

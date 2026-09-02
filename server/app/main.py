@@ -15,7 +15,7 @@ from app.calendar_routes import router as calendar_router
 from app.calendar_service import automation_loop
 from app.config import settings
 from app.consent_routes import router as consent_router
-from app.db import init_db
+from app.db import engine, init_db
 from app.legal_routes import router as legal_router
 from app.remote_monitor import (
     bind_monitor_loop,
@@ -106,6 +106,8 @@ def health():
         "meeting_bot_configured": settings.vexa_configured,
         "microsoft_calendar_configured": settings.microsoft_calendar_configured,
         "calendar_automation_configured": bool(settings.automation_key),
+        "database_backend": engine.dialect.name,
+        "database_persistent": engine.dialect.name != "sqlite",
     }
 
 
