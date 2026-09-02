@@ -29,6 +29,8 @@ FAIL_STATES = {"failed", "rejected", "denied"}
 STOP_COMMANDS = {
     "stop klaria",
     "stop klaria pour moi",
+    "stop scribe",
+    "stop scribe pour moi",
     "arrête klaria",
     "arrete klaria",
     "retire klaria",
@@ -87,7 +89,8 @@ def _store_provider_media(meeting: RemoteMeeting, provider_data: dict) -> None:
 
 
 def is_stop_command(text: str) -> bool:
-    normalized = re.sub(r"[^a-zà-ÿ ]+", " ", text.casefold())
+    normalized = re.sub(r"<[^>]+>", " ", text.casefold())
+    normalized = re.sub(r"[^a-zà-ÿ ]+", " ", normalized)
     normalized = " ".join(normalized.split())
     return any(command in normalized for command in STOP_COMMANDS)
 

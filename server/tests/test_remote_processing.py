@@ -17,6 +17,8 @@ def test_explains_teams_auth_redirect():
 
 def test_understands_stop_command_with_spacing_and_case():
     assert is_stop_command("  STOP   KLARIA  ")
+    assert is_stop_command("<p>STOP KLARIA</p>")
+    assert is_stop_command("STOP SCRIBE")
     assert is_stop_command("Merci d'arrête klaria maintenant")
     assert not is_stop_command("Klaria peut continuer")
 

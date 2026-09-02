@@ -38,6 +38,7 @@ from app.remote_processing import (
     chat_sender,
     finalize_remote_meeting,
     is_stop_command,
+    message_text,
     reanalyze_remote_meeting,
     stop_and_erase_remote_meeting,
     stop_for_participant,
@@ -157,9 +158,9 @@ async def remote_meeting_live(websocket: WebSocket, meeting_id: str):
                     await websocket.send_json(
                         {"type": "status", "status": (event.get("payload") or {}).get("status")}
                     )
-                elif event.get("type") == "chat.received":
-                    payload = event.get("payload") or {}
-                    if is_stop_command(str(payload.get("text") or "")):
+                elif event.get("type") in {"chat.received", "chat.message", "va:chat"}:
+                    payload = event.get("payload") or event.get("data") or {}
+                    if is_stop_command(message_text(payload)):
                         stop_for_participant(meeting_id, chat_sender(payload))
                         await websocket.send_json(
                             {"type": "status", "status": "stopped", "reason": "chat"}
@@ -177,6 +178,41 @@ def owned_remote(meeting_id: str, user: User, db: Session) -> RemoteMeeting:
     return meeting
 
 
+def participant_access(
+    meeting: RemoteMeeting,
+    user: User,
+    db: Session,
+) -> ParticipantConsent | None:
+    return db.exec(
+        select(ParticipantConsent).where(
+            ParticipantConsent.session_id == meeting.consent_session_id,
+            ParticipantConsent.email == user.email.lower(),
+            ParticipantConsent.consented_at.is_not(None),
+            ParticipantConsent.withdrawn_at.is_(None),
+            ParticipantConsent.erasure_requested_at.is_(None),
+        )
+    ).first()
+
+
+def visible_remote(meeting_id: str, user: User, db: Session) -> RemoteMeeting:
+    meeting = db.get(RemoteMeeting, meeting_id)
+    if meeting and (meeting.owner_id == user.id or participant_access(meeting, user, db)):
+        return meeting
+    raise HTTPException(404, "Réunion distante introuvable")
+
+
+def owner_contact(meeting: RemoteMeeting, db: Session) -> dict | None:
+    owner = db.get(User, meeting.owner_id)
+    if not owner or not owner.email:
+        return None
+    return {
+        "name": owner.full_name or owner.email.split("@")[0],
+        "email": owner.email.lower(),
+        "active": True,
+        "role": "owner",
+    }
+
+
 def remote_detail(meeting: RemoteMeeting) -> dict:
     report = json.loads(meeting.report_json) if meeting.report_json else None
     segments = vexa.normalize_timeline(json.loads(meeting.segments_json or "[]"))
@@ -189,6 +225,19 @@ def remote_detail(meeting: RemoteMeeting) -> dict:
                 )
             )
         )
+    owner = owner_contact(meeting, db)
+    contacts = [
+        {
+            "name": item.name,
+            "email": item.email,
+            "active": bool(item.consented_at and not item.withdrawn_at),
+            "role": "participant",
+        }
+        for item in participants
+        if item.email
+    ]
+    if owner and owner["email"] not in {item["email"].lower() for item in contacts}:
+        contacts.insert(0, owner)
     return {
         "id": meeting.id,
         "consent_session_id": meeting.consent_session_id,
@@ -213,15 +262,7 @@ def remote_detail(meeting: RemoteMeeting) -> dict:
         "transcript": meeting.transcript,
         "segments": segments,
         "report": report,
-        "participants": [
-            {
-                "name": item.name,
-                "email": item.email,
-                "active": bool(item.consented_at and not item.withdrawn_at),
-            }
-            for item in participants
-            if item.email
-        ],
+        "participants": contacts,
         "skills": public_skills(),
         "provider_data_deleted": bool(meeting.provider_deleted_at),
         "provider_cleanup_error": meeting.provider_cleanup_error,
@@ -342,11 +383,33 @@ def list_remote_meetings(
     user: User = Depends(current_user),
     db: Session = Depends(get_session),
 ):
-    meetings = db.exec(
+    owned = list(db.exec(
         select(RemoteMeeting)
         .where(RemoteMeeting.owner_id == user.id)
         .order_by(RemoteMeeting.created_at.desc())
-    )
+    ))
+    participant_sessions = [
+        item.session_id
+        for item in db.exec(
+            select(ParticipantConsent).where(
+                ParticipantConsent.email == user.email.lower(),
+                ParticipantConsent.consented_at.is_not(None),
+                ParticipantConsent.withdrawn_at.is_(None),
+                ParticipantConsent.erasure_requested_at.is_(None),
+            )
+        )
+    ]
+    shared = [
+        item
+        for session_id in participant_sessions
+        if (
+            item := db.exec(
+                select(RemoteMeeting).where(RemoteMeeting.consent_session_id == session_id)
+            ).first()
+        )
+        and item.owner_id != user.id
+    ]
+    meetings = sorted(owned + shared, key=lambda item: item.created_at, reverse=True)
     return [remote_detail(item) for item in meetings]
 
 
@@ -356,7 +419,7 @@ def get_remote_meeting(
     user: User = Depends(current_user),
     db: Session = Depends(get_session),
 ):
-    meeting = owned_remote(meeting_id, user, db)
+    meeting = visible_remote(meeting_id, user, db)
     report = json.loads(meeting.report_json or "{}")
     if meeting.status == RemoteMeetingStatus.COMPLETED and meeting.platform == "google_meet":
         with suppress(Exception):
@@ -376,7 +439,7 @@ def get_remote_meeting_media_access(
     user: User = Depends(current_user),
     db: Session = Depends(get_session),
 ):
-    meeting = owned_remote(meeting_id, user, db)
+    meeting = visible_remote(meeting_id, user, db)
     if not meeting.provider_recording_id or not meeting.provider_media_id:
         raise HTTPException(404, "Aucun média n'a été conservé pour cette réunion")
     expires_at = meeting.media_expires_at
@@ -384,7 +447,8 @@ def get_remote_meeting_media_access(
         raise HTTPException(410, "La durée de conservation du replay est terminée")
     token = jwt.encode(
         {
-            "sub": meeting.owner_id,
+            "sub": user.id,
+            "email": user.email.lower(),
             "meeting": meeting.id,
             "scope": "meeting_media",
             "exp": utc_now() + timedelta(hours=2),
@@ -413,7 +477,21 @@ def get_remote_meeting_media(
     if claims.get("meeting") != meeting_id or claims.get("scope") != "meeting_media":
         raise HTTPException(403, "Ce lien ne donne pas accès à cette réunion")
     meeting = db.get(RemoteMeeting, meeting_id)
-    if not meeting or meeting.owner_id != claims.get("sub"):
+    user_email = str(claims.get("email") or "").lower()
+    allowed = bool(meeting and meeting.owner_id == claims.get("sub"))
+    if meeting and not allowed and user_email:
+        allowed = bool(
+            db.exec(
+                select(ParticipantConsent).where(
+                    ParticipantConsent.session_id == meeting.consent_session_id,
+                    ParticipantConsent.email == user_email,
+                    ParticipantConsent.consented_at.is_not(None),
+                    ParticipantConsent.withdrawn_at.is_(None),
+                    ParticipantConsent.erasure_requested_at.is_(None),
+                )
+            ).first()
+        )
+    if not meeting or not allowed:
         raise HTTPException(404, "Réunion distante introuvable")
     if not meeting.provider_recording_id or not meeting.provider_media_id:
         raise HTTPException(404, "Aucun média n'a été conservé pour cette réunion")
@@ -570,15 +648,27 @@ def update_meeting_action(
     if action_index < 0 or action_index >= len(actions):
         raise HTTPException(404, "Action introuvable")
     participant = None
+    owner = db.get(User, meeting.owner_id)
     if payload.owner_email:
-        participant = db.exec(
-            select(ParticipantConsent).where(
-                ParticipantConsent.session_id == meeting.consent_session_id,
-                ParticipantConsent.email == payload.owner_email.lower(),
+        email = payload.owner_email.lower()
+        if owner and email == owner.email.lower():
+            participant = ParticipantConsent(
+                session_id=meeting.consent_session_id,
+                name=owner.full_name or owner.email.split("@")[0],
+                email=owner.email.lower(),
+                token_hash="owner",
+                notice_version=settings.privacy_version,
+                consented_at=meeting.created_at,
             )
-        ).first()
-        if not participant or not participant.consented_at or participant.withdrawn_at:
-            raise HTTPException(409, "Choisissez un participant consentant de cette réunion")
+        else:
+            participant = db.exec(
+                select(ParticipantConsent).where(
+                    ParticipantConsent.session_id == meeting.consent_session_id,
+                    ParticipantConsent.email == email,
+                )
+            ).first()
+            if not participant or not participant.consented_at or participant.withdrawn_at:
+                raise HTTPException(409, "Choisissez un participant consentant de cette réunion")
     action = actions[action_index]
     action["owner"] = participant.name if participant else None
     action["owner_email"] = participant.email if participant else None
@@ -747,7 +837,29 @@ def workspace_overview(
     user: User = Depends(current_user),
     db: Session = Depends(get_session),
 ):
-    remote = list(db.exec(select(RemoteMeeting).where(RemoteMeeting.owner_id == user.id)))
+    owned = list(db.exec(select(RemoteMeeting).where(RemoteMeeting.owner_id == user.id)))
+    shared_session_ids = [
+        item.session_id
+        for item in db.exec(
+            select(ParticipantConsent).where(
+                ParticipantConsent.email == user.email.lower(),
+                ParticipantConsent.consented_at.is_not(None),
+                ParticipantConsent.withdrawn_at.is_(None),
+                ParticipantConsent.erasure_requested_at.is_(None),
+            )
+        )
+    ]
+    shared = [
+        item
+        for session_id in shared_session_ids
+        if (
+            item := db.exec(
+                select(RemoteMeeting).where(RemoteMeeting.consent_session_id == session_id)
+            ).first()
+        )
+        and item.owner_id != user.id
+    ]
+    remote = owned + shared
     recordings = list(db.exec(select(Recording).where(Recording.owner_id == user.id)))
     reports = [json.loads(item.report_json) for item in remote if item.report_json]
     actions = [

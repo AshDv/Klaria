@@ -1,5 +1,5 @@
 from app.db import engine
-from app.llm import Coverage, Decision, MeetingSummary, PodcastTurn, Speaker
+from app.llm import ActionItem, Coverage, Decision, MeetingSummary, PodcastTurn, Speaker
 from app.main import app
 from app.models import (
     CalendarConnection,
@@ -44,7 +44,15 @@ def report() -> MeetingSummary:
         key_points=[],
         mentions=[],
         decisions=[Decision(decision="Lancer", decided_by=["Yanis"], segment_ids=[0])],
-        actions=[],
+        actions=[
+            ActionItem(
+                task="Préparer le lancement",
+                owner=None,
+                due_date=None,
+                priority="medium",
+                segment_ids=[0],
+            )
+        ],
         open_questions=[],
         risks=[],
         podcast_script=[
@@ -137,6 +145,19 @@ def test_remote_meeting_live_and_final_report(monkeypatch):
         assert detail["status"] == "completed"
         assert detail["report"]["decisions"][0]["decision"] == "Lancer"
         assert detail["provider_data_deleted"] is True
+        assert detail["participants"][0]["email"] == "remote@example.com"
+
+        assigned = client.put(
+            f"/api/remote-meetings/{meeting_id}/actions/0",
+            headers=headers,
+            json={
+                "owner_email": "remote@example.com",
+                "due_date": "2026-09-05",
+                "priority": "high",
+            },
+        )
+        assert assigned.status_code == 200
+        assert assigned.json()["owner"] == "Remote User"
 
         shared = client.post(
             f"/api/remote-meetings/{meeting_id}/share",
@@ -148,6 +169,17 @@ def test_remote_meeting_live_and_final_report(monkeypatch):
         public = client.get(f"/api/public/reports/{public_token}")
         assert public.status_code == 200
         assert public.json()["viewer"]["email"] == "yanis@example.com"
+
+        participant_token = register(client, "yanis@example.com")
+        participant_headers = auth(participant_token)
+        shared_list = client.get("/api/remote-meetings", headers=participant_headers).json()
+        assert shared_list[0]["id"] == meeting_id
+        shared_detail = client.get(
+            f"/api/remote-meetings/{meeting_id}",
+            headers=participant_headers,
+        )
+        assert shared_detail.status_code == 200
+        assert shared_detail.json()["report"]["executive_summary"] == "Le lancement est confirmé."
 
         erased = client.delete(f"/api/public/reports/{public_token}/data")
         assert erased.status_code == 204
