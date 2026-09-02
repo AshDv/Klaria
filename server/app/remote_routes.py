@@ -77,6 +77,43 @@ class FollowUpInput(BaseModel):
     calendar_connection_id: str | None = None
 
 
+def public_report_token(meeting_id: str, participant_id: str) -> str:
+    expires_at = datetime.now(UTC) + timedelta(days=settings.result_retention_days)
+    return jwt.encode(
+        {
+            "scope": "meeting_report",
+            "meeting_id": meeting_id,
+            "participant_id": participant_id,
+            "exp": expires_at,
+        },
+        settings.secret_key,
+        algorithm="HS256",
+    )
+
+
+def public_report_meeting(token: str, db: Session) -> tuple[RemoteMeeting, ParticipantConsent]:
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+    except JWTError as exc:
+        raise HTTPException(404, "Lien de compte rendu invalide") from exc
+    if payload.get("scope") != "meeting_report":
+        raise HTTPException(404, "Lien de compte rendu invalide")
+    participant = db.get(ParticipantConsent, payload.get("participant_id"))
+    meeting = db.get(RemoteMeeting, payload.get("meeting_id"))
+    if (
+        not participant
+        or not meeting
+        or participant.session_id != meeting.consent_session_id
+        or not participant.consented_at
+        or participant.withdrawn_at
+        or participant.erasure_requested_at
+    ):
+        raise HTTPException(403, "Ce compte rendu n’est plus accessible")
+    if meeting.status != RemoteMeetingStatus.COMPLETED or not meeting.report_json:
+        raise HTTPException(409, "Le compte rendu n’est pas encore disponible")
+    return meeting, participant
+
+
 @router.websocket("/remote-meetings/{meeting_id}/live")
 async def remote_meeting_live(websocket: WebSocket, meeting_id: str):
     """Relaie le WebSocket Vexa sans exposer sa clé au navigateur."""
@@ -193,6 +230,29 @@ def remote_detail(meeting: RemoteMeeting) -> dict:
         "chat_error": meeting.chat_error,
         "error": meeting.error,
     }
+
+
+@router.get("/public/reports/{token}")
+def get_public_report(token: str, db: Session = Depends(get_session)):
+    meeting, participant = public_report_meeting(token, db)
+    detail = remote_detail(meeting)
+    detail["viewer"] = {"name": participant.name, "email": participant.email}
+    detail["public_access"] = True
+    return detail
+
+
+@router.delete("/public/reports/{token}/data", status_code=204)
+def erase_public_report_data(
+    token: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_session),
+):
+    meeting, participant = public_report_meeting(token, db)
+    participant.withdrawn_at = participant.withdrawn_at or utc_now()
+    participant.erasure_requested_at = utc_now()
+    db.add(participant)
+    db.commit()
+    background_tasks.add_task(stop_for_participant, meeting.id, participant.email)
 
 
 def launch_remote_meeting(
@@ -567,10 +627,13 @@ def share_meeting_report(
             403,
             "Le compte rendu ne peut être envoyé qu’aux participants autorisés",
         )
-    link = f"{settings.frontend_url.rstrip('/')}/meeting/{meeting.id}"
     failed = []
     for email in sorted(requested):
         participant = allowed[email]
+        link = (
+            f"{settings.frontend_url.rstrip('/')}/report/"
+            f"{public_report_token(meeting.id, participant.id)}"
+        )
         try:
             send_report_email(
                 participant.name,

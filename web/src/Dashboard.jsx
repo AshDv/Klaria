@@ -48,7 +48,7 @@ export function Dashboard({ user, onNewBot, onOpen }) {
     </div>
     <article className="bot-banner">
       <div><span className="eyebrow">Assistant de réunion</span><h2>Meet ou Teams : collez le lien, Klaria fait le reste.</h2><p>Consentement vérifié, transcription attribuée aux intervenants, décisions et actions prêtes à partager.</p></div>
-      <div className="bot-orbit" aria-hidden="true"><span>S</span><i/><i/><i/></div>
+      <div className="bot-orbit" aria-hidden="true"><span>K</span><i/><i/><i/></div>
     </article>
   </section>;
 }

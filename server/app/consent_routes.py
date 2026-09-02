@@ -2,11 +2,12 @@
 
 import hashlib
 import secrets
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from jose import jwt
 from pydantic import BaseModel, EmailStr, Field
 from sqlmodel import Session, select
 
@@ -25,7 +26,7 @@ from app.models import (
     User,
     utc_now,
 )
-from app.remote_processing import erase_provider_meeting, stop_for_participant
+from app.remote_processing import stop_for_participant
 
 router = APIRouter(prefix="/api")
 
@@ -67,6 +68,20 @@ def participants_for(session_id: str, db: Session) -> list[ParticipantConsent]:
 
 def is_active(consent: ParticipantConsent) -> bool:
     return bool(consent.consented_at and not consent.withdrawn_at)
+
+
+def public_report_token(meeting_id: str, participant_id: str) -> str:
+    expires_at = datetime.now(UTC) + timedelta(days=settings.result_retention_days)
+    return jwt.encode(
+        {
+            "scope": "meeting_report",
+            "meeting_id": meeting_id,
+            "participant_id": participant_id,
+            "exp": expires_at,
+        },
+        settings.secret_key,
+        algorithm="HS256",
+    )
 
 
 def refresh_status(meeting: ConsentSession, db: Session) -> None:
@@ -243,6 +258,14 @@ def public_consent(token: str, db: Session) -> ParticipantConsent:
 def get_public_consent(token: str, db: Session = Depends(get_session)):
     consent = public_consent(token, db)
     meeting = db.get(ConsentSession, consent.session_id)
+    remote = db.exec(
+        select(RemoteMeeting).where(RemoteMeeting.consent_session_id == consent.session_id)
+    ).first()
+    report_token = (
+        public_report_token(remote.id, consent.id)
+        if remote and remote.report_json and is_active(consent) and not consent.erasure_requested_at
+        else None
+    )
     return {
         "participant_name": consent.name,
         "meeting_title": meeting.title if meeting else "Réunion",
@@ -254,6 +277,7 @@ def get_public_consent(token: str, db: Session = Depends(get_session)):
         "retention_days": settings.result_retention_days,
         "media_recording_enabled": bool(meeting and meeting.media_recording_enabled),
         "media_retention_days": meeting.media_retention_days if meeting else 0,
+        "report_url": f"/report/{report_token}" if report_token else None,
     }
 
 
@@ -300,6 +324,17 @@ def erase_consent_data(
     db: Session = Depends(get_session),
 ):
     consent = public_consent(token, db)
+    remote = db.exec(
+        select(RemoteMeeting).where(RemoteMeeting.consent_session_id == consent.session_id)
+    ).first()
+    if remote:
+        consent.withdrawn_at = consent.withdrawn_at or utc_now()
+        consent.erasure_requested_at = utc_now()
+        db.add(consent)
+        db.commit()
+        background_tasks.add_task(stop_for_participant, remote.id, consent.email)
+        return
+
     links = db.exec(
         select(SessionRecording).where(SessionRecording.session_id == consent.session_id)
     )
@@ -325,12 +360,6 @@ def erase_consent_data(
     for recording in recordings:
         db.delete(recording)
     db.flush()
-    remote = db.exec(
-        select(RemoteMeeting).where(RemoteMeeting.consent_session_id == consent.session_id)
-    ).first()
-    if remote:
-        background_tasks.add_task(erase_provider_meeting, remote.platform, remote.native_id)
-        db.delete(remote)
     consent.name = "Données effacées"
     consent.email = ""
     consent.token_hash = token_hash(secrets.token_urlsafe(32))

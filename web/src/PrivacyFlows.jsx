@@ -38,6 +38,7 @@ export function PublicConsent({ token }) {
       <li>Vous pouvez retirer votre accord ou demander l’effacement depuis cette page.</li>
     </ul>
     <p className="privacy-hint">Contact : {notice.privacy_contact}</p>
+    {notice.report_url && <a className="primary-button compact" href={notice.report_url}>Ouvrir mon compte rendu</a>}
     {message && <div className="alert success">{message}</div>}
     <div className="control-row">
       {!active && <button className="primary-button compact" onClick={() => act(api.acceptConsent)}>{notice.media_recording_enabled ? "J’accepte la transcription et le replay audio" : "J’accepte la transcription"}</button>}
@@ -53,7 +54,68 @@ export function PublicConsent({ token }) {
 }
 
 export function PublicShell({ children }) {
-  return <main className="public-page"><section className="content-card public-card"><div className="brand"><span className="brand-mark">N</span><span>Klaria</span></div>{children}</section></main>;
+  return <main className="public-page"><section className="content-card public-card"><div className="brand"><span className="brand-mark">K</span><span>Klaria</span></div>{children}</section></main>;
+}
+
+export function PublicReport({ token }) {
+  const [meeting, setMeeting] = useState(null);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api.getPublicReport(token).then(setMeeting).catch((requestError) => setError(requestError.message));
+  }, [token]);
+
+  async function erase() {
+    if (!confirm("Retirer votre accord et effacer vos données de cette réunion ?")) return;
+    try {
+      await api.erasePublicReportData(token);
+      setMeeting(null);
+      setMessage("Votre demande est enregistrée. Vos passages sont supprimés et le compte rendu est régénéré sans vos données quand c’est possible.");
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+  }
+
+  if (error && !meeting) return <PublicShell><div className="alert error">{error}</div></PublicShell>;
+  if (message && !meeting) return <PublicShell><div className="alert success">{message}</div></PublicShell>;
+  if (!meeting) return <PublicShell><p>Chargement du compte rendu…</p></PublicShell>;
+  const report = meeting.report || {};
+  return <PublicShell>
+    <span className="eyebrow">Compte rendu partagé</span>
+    <h1>{meeting.title}</h1>
+    <p>Bonjour {meeting.viewer?.name}. Ce lien est personnel et reste contrôlé par votre consentement.</p>
+    <section className="public-report-section">
+      <h2>En bref</h2>
+      <RichText value={report.executive_summary || "Compte rendu disponible."}/>
+    </section>
+    <section className="public-report-section">
+      <h2>Actions</h2>
+      {report.actions?.length ? <ul className="notice-list">{report.actions.map((item, index) => <li key={index}>{item.task}{item.owner ? ` — ${item.owner}` : ""}{item.due_date ? ` · ${item.due_date}` : ""}</li>)}</ul> : <p>Aucune action identifiée.</p>}
+    </section>
+    <section className="public-report-section">
+      <h2>Compte rendu détaillé</h2>
+      <RichText value={report.detailed_minutes || ""}/>
+    </section>
+    <section className="public-report-section">
+      <h2>Transcription</h2>
+      {meeting.segments?.length ? meeting.segments.map((segment) => <p key={segment.id}><strong>{segment.speaker}</strong> — {segment.text}</p>) : <p>Aucune transcription disponible.</p>}
+    </section>
+    {message && <div className="alert success">{message}</div>}
+    {error && <div className="alert error">{error}</div>}
+    <button className="stop-button" onClick={erase}>Retirer mon accord et effacer mes données</button>
+  </PublicShell>;
+}
+
+function RichText({ value = "" }) {
+  const blocks = value.replace(/\*\*/g, "").split(/\n{2,}/).map((item) => item.trim()).filter(Boolean);
+  return <div className="rich-report">{blocks.map((block, index) => {
+    const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (lines.every((line) => /^[•*-]\s+/.test(line))) {
+      return <ul key={index}>{lines.map((line, itemIndex) => <li key={itemIndex}>{line.replace(/^[•*-]\s+/, "")}</li>)}</ul>;
+    }
+    return <p key={index}>{lines.join(" ")}</p>;
+  })}</div>;
 }
 
 export function PublicLegal({ type }) {

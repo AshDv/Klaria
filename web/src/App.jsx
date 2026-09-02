@@ -3,7 +3,7 @@ import { api, isAuthenticated, setAccessToken } from "./api";
 import { ActionsView, Dashboard } from "./Dashboard";
 import { MeetingsHub } from "./CalendarAutomation";
 import { PodcastPlayer } from "./PodcastPlayer";
-import { LegalGate, PublicConsent, PublicLegal } from "./PrivacyFlows";
+import { LegalGate, PublicConsent, PublicLegal, PublicReport } from "./PrivacyFlows";
 import { NewMeeting } from "./RemoteMeetingWorkflow";
 import { RemoteMeetingView } from "./RemoteMeetingView";
 
@@ -36,6 +36,8 @@ function consumeSsoToken() {
 export default function App() {
   const match = window.location.pathname.match(/^\/consent\/([^/]+)$/);
   if (match) return <PublicConsent token={match[1]} />;
+  const report = window.location.pathname.match(/^\/report\/([^/]+)$/);
+  if (report) return <PublicReport token={report[1]} />;
   if (window.location.pathname === "/privacy-policy") return <PublicLegal type="privacy" />;
   if (window.location.pathname === "/terms") return <PublicLegal type="terms" />;
   return <AuthenticatedApp />;
