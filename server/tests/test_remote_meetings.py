@@ -63,6 +63,7 @@ def report() -> MeetingSummary:
 
 def test_remote_meeting_live_and_final_report(monkeypatch):
     tokens = []
+    reports = []
     monkeypatch.setattr("app.config.settings.smtp_host", "smtp.example.com")
     monkeypatch.setattr("app.config.settings.smtp_from_email", "klaria@example.com")
     monkeypatch.setattr("app.config.settings.vexa_api_key", "vexa-test")
@@ -92,6 +93,10 @@ def test_remote_meeting_live_and_final_report(monkeypatch):
     monkeypatch.setattr("app.remote_processing.vexa.stop_bot", lambda *_: None)
     monkeypatch.setattr("app.remote_processing.vexa.delete_meeting", lambda *_: None)
     monkeypatch.setattr("app.remote_processing.generate_summary", lambda *_: report())
+    monkeypatch.setattr(
+        "app.remote_routes.send_report_email",
+        lambda _name, _email, _title, _summary, link: reports.append(link),
+    )
 
     with TestClient(app) as client:
         token = register(client, "remote@example.com")
@@ -132,6 +137,21 @@ def test_remote_meeting_live_and_final_report(monkeypatch):
         assert detail["status"] == "completed"
         assert detail["report"]["decisions"][0]["decision"] == "Lancer"
         assert detail["provider_data_deleted"] is True
+
+        shared = client.post(
+            f"/api/remote-meetings/{meeting_id}/share",
+            headers=headers,
+            json={"recipient_emails": ["yanis@example.com"]},
+        )
+        assert shared.status_code == 200
+        public_token = reports[0].split("/report/")[1]
+        public = client.get(f"/api/public/reports/{public_token}")
+        assert public.status_code == 200
+        assert public.json()["viewer"]["email"] == "yanis@example.com"
+
+        erased = client.delete(f"/api/public/reports/{public_token}/data")
+        assert erased.status_code == 204
+        assert client.get(f"/api/public/reports/{public_token}").status_code == 403
 
 
 def test_delete_remote_meeting_erases_local_archive(monkeypatch):
