@@ -3,6 +3,7 @@
 import smtplib
 from datetime import datetime
 from email.message import EmailMessage
+from email.utils import formataddr
 from html import escape
 from textwrap import dedent
 from zoneinfo import ZoneInfo
@@ -12,6 +13,10 @@ from app.config import settings
 
 class EmailError(RuntimeError):
     pass
+
+
+def sender() -> str:
+    return formataddr(("Klaria", settings.smtp_from_email or ""))
 
 
 def _date(value: datetime | None) -> str:
@@ -146,7 +151,7 @@ Contact données personnelles : {settings.privacy_contact_email}
 
     message = EmailMessage()
     message["Subject"] = f"Votre accord est requis avant « {title} »"
-    message["From"] = settings.smtp_from_email
+    message["From"] = sender()
     message["To"] = email
     message["Reply-To"] = organizer_email or settings.privacy_contact_email
     message.set_content(plain)
@@ -171,7 +176,7 @@ def send_report_email(name: str, email: str, title: str, summary: str, link: str
     safe_summary, safe_link = escape(summary), escape(link, quote=True)
     message = EmailMessage()
     message["Subject"] = f"Compte rendu — {title}"
-    message["From"] = settings.smtp_from_email
+    message["From"] = sender()
     message["To"] = email
     message["Reply-To"] = settings.privacy_contact_email
     message.set_content(

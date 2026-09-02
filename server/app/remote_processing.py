@@ -32,6 +32,10 @@ STOP_COMMANDS = {
     "arrête klaria",
     "arrete klaria",
     "retire klaria",
+    "retirer klaria",
+    "coupe klaria",
+    "arretez klaria",
+    "arrêtez klaria",
 }
 
 
@@ -88,15 +92,33 @@ def is_stop_command(text: str) -> bool:
     return any(command in normalized for command in STOP_COMMANDS)
 
 
+def message_text(message: dict) -> str:
+    """Extrait le texte du chat selon les formats possibles du fournisseur."""
+    for key in ("text", "message", "content", "body", "bodyPreview"):
+        value = message.get(key)
+        if isinstance(value, dict):
+            value = next(
+                (
+                    value.get(name)
+                    for name in ("content", "text", "plainText")
+                    if value.get(name)
+                ),
+                "",
+            )
+        if value:
+            return str(value)
+    return ""
+
+
 def _stop_requested(messages: list[dict]) -> dict | None:
     return next(
         (
             item
             for item in reversed(messages)
             if isinstance(item, dict)
-            and not str(item.get("text") or "").startswith("Klaria est présent")
+            and not message_text(item).startswith("Klaria est présent")
             and "klaria" not in _plain(chat_sender(item))
-            and is_stop_command(str(item.get("text") or ""))
+            and is_stop_command(message_text(item))
         ),
         None,
     )
@@ -109,16 +131,42 @@ def _plain(value: str | None) -> str:
 
 def chat_sender(message: dict) -> str:
     """Lit les formes de message observées sans conserver le contenu du chat."""
-    for key in ("sender_name", "display_name", "author_name", "sender", "author", "from"):
+    for key in (
+        "sender_name",
+        "display_name",
+        "author_name",
+        "sender",
+        "author",
+        "from",
+        "user",
+    ):
         value = message.get(key)
         if isinstance(value, dict):
             value = next(
-                (value.get(name) for name in ("display_name", "name", "email") if value.get(name)),
+                (
+                    value.get(name)
+                    for name in (
+                        "display_name",
+                        "displayName",
+                        "name",
+                        "email",
+                        "address",
+                    )
+                    if value.get(name)
+                ),
                 "",
             )
         if value:
             return str(value)
     return ""
+
+
+def _stop_segment_hint(segments: list[dict]) -> str | None:
+    """Détecte aussi STOP KLARIA si le chat Vexa n'est pas disponible."""
+    for item in reversed(segments):
+        if is_stop_command(str(item.get("text") or "")):
+            return str(item.get("speaker") or "__unknown__")
+    return None
 
 
 def _participant_from_hint(
@@ -248,8 +296,12 @@ def sync_remote_meeting(meeting_id: str) -> bool:
         }:
             return False
         data = vexa.get_transcript(meeting.platform, meeting.native_id)
-        _store_transcript(meeting, data)
+        segments = _store_transcript(meeting, data)
         provider_status = (meeting.provider_status or "").lower()
+        if sender := _stop_segment_hint(segments):
+            db.commit()
+            stop_for_participant(meeting.id, sender)
+            return False
         if provider_status in LIVE_STATES:
             try:
                 messages = vexa.get_chat(meeting.platform, meeting.native_id)
