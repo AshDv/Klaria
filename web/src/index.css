@@ -350,6 +350,10 @@ html[data-teams-theme="dark"] .teams-shell :is(.content-card,.dashboard-panel,.m
 .rich-report { display:grid; gap:12px; margin-top:12px; }
 .rich-report p,.rich-report ul { margin:0; color:#34423d; font-size:14px; line-height:1.75; }
 .rich-report ul { padding-left:20px; }
+.executive-card .rich-report p,
+.executive-card .rich-report ul,
+.executive-card .rich-report li { color:#d8eee7; }
+.executive-card .rich-report strong { color:#fff; }
 .action-table-row.editable select,.action-table-row.editable input,.post-actions input,.action-filters input,.action-filters select { min-width:0; min-height:40px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; color:var(--ink); background:#fff; font:inherit; }
 .action-save { display:flex; gap:7px; }
 .action-save select { flex:1; }
