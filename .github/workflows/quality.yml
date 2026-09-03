@@ -5,6 +5,9 @@ on:
   push:
     branches: [main, develop]
 
+permissions:
+  contents: read
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -20,7 +23,13 @@ jobs:
           cache-dependency-path: server/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       - run: ruff check app tests
-      - run: pytest -q
+      - name: Tests backend et couverture
+        run: pytest --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=75
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: backend-coverage
+          path: server/coverage.xml
 
   frontend:
     runs-on: ubuntu-latest
@@ -34,5 +43,22 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - run: npm ci
+      - run: npm install
+      - name: Tests frontend et couverture
+        run: npm test
       - run: npm run build
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: frontend-coverage
+          path: web/coverage
+
+  teams-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Valider le manifeste Teams
+        run: node scripts/validate-teams-manifest.mjs
