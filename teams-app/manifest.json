@@ -1,0 +1,50 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.19/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.19",
+  "version": "1.0.0",
+  "id": "6c4f1cd3-dd5d-4d17-a030-3b0316ebb026",
+  "developer": {
+    "name": "Klaria",
+    "websiteUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud",
+    "privacyUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/privacy-policy",
+    "termsOfUseUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/terms"
+  },
+  "name": {
+    "short": "Klaria",
+    "full": "Klaria, intelligence de réunion"
+  },
+  "description": {
+    "short": "Transcriptions, décisions et actions dans Teams.",
+    "full": "Klaria transforme une réunion consentie en transcription, décisions, actions et brief audio."
+  },
+  "icons": {
+    "outline": "outline.png",
+    "color": "color.png"
+  },
+  "accentColor": "#173E35",
+  "staticTabs": [
+    {
+      "entityId": "klaria-home",
+      "name": "Accueil",
+      "contentUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/?host=teams&view=dashboard",
+      "websiteUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/",
+      "scopes": ["personal"]
+    },
+    {
+      "entityId": "klaria-meetings",
+      "name": "Réunions",
+      "contentUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/?host=teams&view=meetings",
+      "websiteUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/",
+      "scopes": ["personal"]
+    },
+    {
+      "entityId": "klaria-actions",
+      "name": "Actions",
+      "contentUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/?host=teams&view=actions",
+      "websiteUrl": "https://scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud/",
+      "scopes": ["personal"]
+    }
+  ],
+  "permissions": ["identity"],
+  "validDomains": ["scribepoc342c95dc-klaria.functions.fnc.fr-par.scw.cloud"]
+}
